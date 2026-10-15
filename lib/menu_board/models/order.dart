@@ -51,14 +51,16 @@ extension OrderStatusX on OrderStatus {
 class Order {
   final String id;
   final String? namaPelanggan; // opsional, bisa kosong buat walk-in
+  final String? meja; // opsional, nomor meja pelanggan
   final int totalHarga;
   final OrderStatus status;
   final DateTime createdAt;
   final List<OrderItem> items;
 
-  const Order({
+  Order({
     required this.id,
     this.namaPelanggan,
+    this.meja,
     required this.totalHarga,
     required this.status,
     required this.createdAt,
@@ -69,6 +71,7 @@ class Order {
     return Order(
       id: map['id'] as String,
       namaPelanggan: map['nama_pelanggan'] as String?,
+      meja: map['meja'] as String?,
       totalHarga: map['total_harga'] as int,
       status: OrderStatusX.fromDb(map['status'] as String),
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -80,6 +83,7 @@ class Order {
     return {
       'id': id,
       'nama_pelanggan': namaPelanggan,
+      'meja': meja,
       'total_harga': totalHarga,
       'status': status.dbValue,
       'created_at': createdAt.toIso8601String(),
@@ -90,6 +94,7 @@ class Order {
   Map<String, dynamic> toInsertMap() {
     return {
       'nama_pelanggan': namaPelanggan,
+      'meja': meja,
       'total_harga': totalHarga,
       'status': status.dbValue,
     };
@@ -97,6 +102,7 @@ class Order {
 
   Order copyWith({
     String? namaPelanggan,
+    String? meja,
     int? totalHarga,
     OrderStatus? status,
     List<OrderItem>? items,
@@ -104,6 +110,7 @@ class Order {
     return Order(
       id: id,
       namaPelanggan: namaPelanggan ?? this.namaPelanggan,
+      meja: meja ?? this.meja,
       totalHarga: totalHarga ?? this.totalHarga,
       status: status ?? this.status,
       createdAt: createdAt,

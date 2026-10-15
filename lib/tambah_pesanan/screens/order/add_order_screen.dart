@@ -19,7 +19,20 @@ class AddOrderScreen extends StatefulWidget {
 class _AddOrderScreenState extends State<AddOrderScreen> {
   final _searchController = TextEditingController();
   String _query = '';
-  String _tipeFilter = 'semua';
+  String? _kategoriTerpilih;
+
+  /// Urutan tampil chip sesuai menu fisik; kategori di luar daftar
+  /// ini tetap muncul, ditaruh di paling belakang.
+  static const _urutanKategori = [
+    'Camilan',
+    'Snacks',
+    'Food',
+    'Manual Brew',
+    'Milk Based',
+    'Coffee Based',
+    'Non Coffee',
+    'Mocktail',
+  ];
 
   @override
   void initState() {
@@ -40,10 +53,11 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   List<MenuItem> _terapkanFilter(List<MenuItem> items) {
     return items.where((e) {
-      final cocokTipe = _tipeFilter == 'semua' || e.tipe == _tipeFilter;
+      final cocokKategori =
+          _kategoriTerpilih == null || e.kategori == _kategoriTerpilih;
       final cocokQuery =
           _query.isEmpty || e.nama.toLowerCase().contains(_query);
-      return cocokTipe && cocokQuery && e.tersedia;
+      return cocokKategori && cocokQuery && e.tersedia;
     }).toList();
   }
 
@@ -80,6 +94,40 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     );
   }
 
+  Widget _buildFilterChips() {
+    return Consumer<MenuProvider>(
+      builder: (context, provider, _) {
+        final kategoris = [...provider.kategoriList]..sort((a, b) {
+            final ia = _urutanKategori.indexOf(a);
+            final ib = _urutanKategori.indexOf(b);
+            return (ia < 0 ? 999 : ia).compareTo(ib < 0 ? 999 : ib);
+          });
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _FilterChip(
+                label: 'Semua',
+                selected: _kategoriTerpilih == null,
+                onTap: () => setState(() => _kategoriTerpilih = null),
+              ),
+              for (final k in kategoris) ...[
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: k,
+                  selected: _kategoriTerpilih == k,
+                  onTap: () => setState(() => _kategoriTerpilih = k),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,30 +150,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _FilterChip(
-                  label: 'Semua',
-                  selected: _tipeFilter == 'semua',
-                  onTap: () => setState(() => _tipeFilter = 'semua'),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Makanan',
-                  selected: _tipeFilter == 'makanan',
-                  onTap: () => setState(() => _tipeFilter = 'makanan'),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Minuman',
-                  selected: _tipeFilter == 'minuman',
-                  onTap: () => setState(() => _tipeFilter = 'minuman'),
-                ),
-              ],
-            ),
-          ),
+          _buildFilterChips(),
           const SizedBox(height: 8),
           Expanded(
             child: Consumer<MenuProvider>(
@@ -327,7 +352,7 @@ class _CartBar extends StatelessWidget {
 }
 
 /// Bottom sheet keranjang: atur jumlah/catatan per item, isi nama
-/// pelanggan (opsional), lalu simpan pesanan ke Supabase.
+/// pelanggan & nomor meja (opsional), lalu simpan pesanan ke Supabase.
 class _CartSheet extends StatefulWidget {
   const _CartSheet();
 
@@ -337,17 +362,21 @@ class _CartSheet extends StatefulWidget {
 
 class _CartSheetState extends State<_CartSheet> {
   final _namaController = TextEditingController();
+  final _mejaController = TextEditingController();
 
   @override
   void dispose() {
     _namaController.dispose();
+    _mejaController.dispose();
     super.dispose();
   }
 
   Future<void> _simpan() async {
     final provider = context.read<OrderProvider>();
     final nama = _namaController.text.trim();
+    final meja = _mejaController.text.trim();
     provider.setNamaPelanggan(nama.isEmpty ? null : nama);
+    provider.setMeja(meja.isEmpty ? null : meja);
 
     try {
       final order = await provider.simpanPesanan();
@@ -434,11 +463,30 @@ class _CartSheetState extends State<_CartSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          TextField(
-                            controller: _namaController,
-                            decoration: const InputDecoration(
-                              hintText: 'Nama pelanggan (opsional)',
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: _namaController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Nama pelanggan (opsional)',
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: _mejaController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Meja',
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           Row(

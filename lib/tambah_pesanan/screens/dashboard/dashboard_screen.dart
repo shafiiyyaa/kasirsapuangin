@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../menu_board/providers/menu_provider.dart';
 import '../../../menu_board/providers/order_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../widgets/order_detail_sheet.dart';
 import '../../widgets/order_list_tile.dart';
 import '../../widgets/stat_card.dart';
 
@@ -86,15 +86,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               },
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/tambah-pesanan'),
-              icon: const Icon(Icons.add),
-              label: const Text('Tambah Pesanan'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-              ),
-            ),
             const SizedBox(height: 24),
             Text('Pesanan Terbaru', style: AppTextStyles.displayMedium),
             const SizedBox(height: 10),
@@ -132,8 +123,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final terbaru = orderProvider.orders.take(5).toList();
 
                 return Column(
-                  children:
-                      terbaru.map((o) => OrderListTile(order: o)).toList(),
+                  children: terbaru
+                      .map(
+                        (o) => InkWell(
+                          onTap: () => showOrderDetail(context, o),
+                          borderRadius: BorderRadius.circular(12),
+                          child: OrderListTile(order: o),
+                        ),
+                      )
+                      .toList(),
                 );
               },
             ),

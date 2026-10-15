@@ -64,6 +64,7 @@ class SupabaseService {
   /// daftar [CartItem] yang dikumpulkan di layar Tambah Pesanan.
   static Future<Order> createOrder({
     String? namaPelanggan,
+    String? meja,
     required List<CartItem> items,
   }) async {
     final totalHarga = items.fold<int>(0, (sum, e) => sum + e.subtotal);
@@ -72,6 +73,7 @@ class SupabaseService {
         .from('orders')
         .insert({
           'nama_pelanggan': namaPelanggan,
+          'meja': meja,
           'total_harga': totalHarga,
           'status': OrderStatus.baru.dbValue,
         })
