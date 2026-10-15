@@ -35,7 +35,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Muat ulang',
+            onPressed: _muatData,
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _muatData,
         child: ListView(
@@ -46,8 +55,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final jumlahMenuTersedia =
                     menuProvider.items.where((e) => e.tersedia).length;
 
-                // Lebar >= 700 (tablet/desktop) -> 4 kolom sejajar.
-                // Lebih sempit (HP) -> 2 kolom, 2x2.
                 final lebarLayar = MediaQuery.sizeOf(context).width;
                 final jumlahKolom = lebarLayar >= 700 ? 4 : 2;
 
@@ -77,7 +84,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     StatCard(
                       label: 'Status',
-                      value: menuProvider.isLoading || orderProvider.isLoadingRingkasan
+                      value: menuProvider.isLoading ||
+                              orderProvider.isLoadingRingkasan
                           ? 'Memuat...'
                           : 'Terkini',
                       icon: Icons.sync_outlined,

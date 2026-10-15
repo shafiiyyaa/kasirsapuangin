@@ -3,10 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/app_theme.dart';
 
-/// Shell navigasi utama aplikasi: bottom nav bar dengan tombol
-/// "Tambah Pesanan" menonjol di tengah. Membungkus Dashboard, Menu,
-/// dan Riwayat Pesanan — masing-masing tetap punya Scaffold/AppBar
-/// sendiri di dalamnya, shell ini cuma nambahin bar navigasi di bawah.
+/// Shell navigasi utama: bottom nav 3 menu + tombol tambah pesanan
+/// berbentuk FAB bulat mengambang di pojok kanan bawah.
 class AppScaffold extends StatelessWidget {
   /// 0 = Dashboard, 1 = Menu, 2 = Riwayat
   final int currentIndex;
@@ -26,13 +24,12 @@ class AppScaffold extends StatelessWidget {
         onPressed: () => context.push('/tambah-pesanan'),
         backgroundColor: AppColors.gold,
         foregroundColor: AppColors.forestGreenDark,
-        elevation: 2,
+        elevation: 4,
+        shape: const CircleBorder(), // bulat
         child: const Icon(Icons.add, size: 28),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
         color: AppColors.surface,
         elevation: 4,
         child: Row(
@@ -50,15 +47,12 @@ class AppScaffold extends StatelessWidget {
               selected: currentIndex == 1,
               onTap: () => context.go('/menu'),
             ),
-            // Ruang kosong buat notch tombol tambah di tengah
-            const SizedBox(width: 56),
             _NavButton(
               icon: Icons.receipt_long_outlined,
               label: 'Riwayat',
               selected: currentIndex == 2,
               onTap: () => context.go('/riwayat'),
             ),
-            const SizedBox(width: 8),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../menu_board/models/order.dart';
+import '../services/receipt_service.dart';
 
 void showOrderDetail(BuildContext context, Order order) {
   showModalBottomSheet(
@@ -41,6 +42,11 @@ class OrderDetailSheet extends StatelessWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               IconButton(
+                icon: const Icon(Icons.print_outlined),
+                tooltip: 'Cetak Struk',
+                onPressed: () => ReceiptService.cetakStruk(order),
+              ),
+              IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.pop(context),
               ),
@@ -49,7 +55,8 @@ class OrderDetailSheet extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Atas nama: ${order.namaPelanggan ?? '-'}'),
           Text('Meja: ${order.meja ?? '-'}'),
-          Text('Status: ${order.status.name}'),
+          Text('Pembayaran: ${ReceiptService.metodeLabel(order.metodePembayaran)}'),
+          Text('Status: ${order.status.label}'),
           const Divider(height: 24),
           if (items.isEmpty)
             const Padding(

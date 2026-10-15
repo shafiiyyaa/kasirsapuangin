@@ -9,9 +9,6 @@ const String supabasePublishableKey =
     'sb_publishable_K1QMR9WNPheN5IaWY4gMLQ_3uOw8p3l';
 
 /// Satu pintu untuk semua akses ke Supabase.
-/// Panggil [SupabaseService.initialize] sekali di awal main() sebelum
-/// runApp(), lalu akses lewat [SupabaseService.client] / method di
-/// bawah ini dari mana saja (biasanya lewat Provider).
 class SupabaseService {
   SupabaseService._();
 
@@ -60,11 +57,10 @@ class SupabaseService {
 
   // ---------- PESANAN ----------
 
-  /// Membuat pesanan baru beserta item-itemnya dalam satu alur, dari
-  /// daftar [CartItem] yang dikumpulkan di layar Tambah Pesanan.
   static Future<Order> createOrder({
     String? namaPelanggan,
     String? meja,
+    String metodePembayaran = 'cash',
     required List<CartItem> items,
   }) async {
     final totalHarga = items.fold<int>(0, (sum, e) => sum + e.subtotal);
@@ -74,6 +70,7 @@ class SupabaseService {
         .insert({
           'nama_pelanggan': namaPelanggan,
           'meja': meja,
+          'metode_pembayaran': metodePembayaran,
           'total_harga': totalHarga,
           'status': OrderStatus.baru.dbValue,
         })
@@ -129,8 +126,6 @@ class SupabaseService {
 
   // ---------- DASHBOARD ----------
 
-  /// Ringkasan sederhana buat kartu statistik di dashboard: jumlah
-  /// pesanan & total pendapatan hari ini (dihitung dari jam 00:00 lokal).
   static Future<({int jumlahPesanan, int totalPendapatan})>
       fetchRingkasanHariIni() async {
     final now = DateTime.now();

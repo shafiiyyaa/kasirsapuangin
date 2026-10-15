@@ -11,10 +11,12 @@ class OrderProvider extends ChangeNotifier {
   final List<CartItem> _cart = [];
   String? _namaPelanggan;
   String? _meja;
+  String _metodePembayaran = 'cash';
 
   List<CartItem> get cart => List.unmodifiable(_cart);
   String? get namaPelanggan => _namaPelanggan;
   String? get meja => _meja;
+  String get metodePembayaran => _metodePembayaran;
   int get totalCart => _cart.fold(0, (sum, e) => sum + e.subtotal);
   int get jumlahItemCart => _cart.fold(0, (sum, e) => sum + e.jumlah);
 
@@ -25,6 +27,11 @@ class OrderProvider extends ChangeNotifier {
 
   void setMeja(String? value) {
     _meja = (value == null || value.isEmpty) ? null : value;
+    notifyListeners();
+  }
+
+  void setMetodePembayaran(String value) {
+    _metodePembayaran = value;
     notifyListeners();
   }
 
@@ -60,6 +67,7 @@ class OrderProvider extends ChangeNotifier {
     _cart.clear();
     _namaPelanggan = null;
     _meja = null;
+    _metodePembayaran = 'cash';
     notifyListeners();
   }
 
@@ -78,6 +86,7 @@ class OrderProvider extends ChangeNotifier {
       final order = await SupabaseService.createOrder(
         namaPelanggan: _namaPelanggan,
         meja: _meja,
+        metodePembayaran: _metodePembayaran,
         items: _cart,
       );
       kosongkanKeranjang();

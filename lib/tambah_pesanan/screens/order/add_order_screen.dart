@@ -7,6 +7,7 @@ import '../../../menu_board/models/order_item.dart';
 import '../../../menu_board/providers/menu_provider.dart';
 import '../../../menu_board/providers/order_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../services/receipt_service.dart';
 import '../../widgets/menu_item_card.dart';
 
 class AddOrderScreen extends StatefulWidget {
@@ -21,8 +22,6 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   String _query = '';
   String? _kategoriTerpilih;
 
-  /// Urutan tampil chip sesuai menu fisik; kategori di luar daftar
-  /// ini tetap muncul, ditaruh di paling belakang.
   static const _urutanKategori = [
     'Camilan',
     'Snacks',
@@ -59,14 +58,6 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           _query.isEmpty || e.nama.toLowerCase().contains(_query);
       return cocokKategori && cocokQuery && e.tersedia;
     }).toList();
-  }
-
-  Map<String, List<MenuItem>> _kelompokkanPerKategori(List<MenuItem> items) {
-    final map = <String, List<MenuItem>>{};
-    for (final item in items) {
-      map.putIfAbsent(item.kategori, () => []).add(item);
-    }
-    return map;
   }
 
   void _tambahCepat(MenuItem item) {
@@ -194,7 +185,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   );
                 }
 
-                final grouped = _kelompokkanPerKategori(filtered);
+                final grouped = <String, List<MenuItem>>{};
+                for (final item in filtered) {
+                  grouped.putIfAbsent(item.kategori, () => []).add(item);
+                }
 
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
@@ -309,7 +303,6 @@ class _KategoriSection extends StatelessWidget {
   }
 }
 
-/// Bar ringkas persisten di bawah layar, muncul begitu keranjang gak kosong.
 class _CartBar extends StatelessWidget {
   final int jumlahItem;
   final int total;
@@ -351,8 +344,8 @@ class _CartBar extends StatelessWidget {
   }
 }
 
-/// Bottom sheet keranjang: atur jumlah/catatan per item, isi nama
-/// pelanggan & nomor meja (opsional), lalu simpan pesanan ke Supabase.
+/// Bottom sheet keranjang: atur jumlah/catatan, pilih metode pembayaran,
+/// isi nama pelanggan & meja, lalu simpan ke Supabase.
 class _CartSheet extends StatefulWidget {
   const _CartSheet();
 
@@ -373,6 +366,9 @@ class _CartSheetState extends State<_CartSheet> {
 
   Future<void> _simpan() async {
     final provider = context.read<OrderProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+
     final nama = _namaController.text.trim();
     final meja = _mejaController.text.trim();
     provider.setNamaPelanggan(nama.isEmpty ? null : nama);
@@ -380,17 +376,26 @@ class _CartSheetState extends State<_CartSheet> {
 
     try {
       final order = await provider.simpanPesanan();
+      if (order == null) return;
+
+      // Refresh data biar dashboard langsung keupdate pas balik.
+      await provider.loadOrders();
+      await provider.loadRingkasanHariIni();
       if (!mounted) return;
 
-      if (order != null) {
-        Navigator.of(context).pop(); // tutup sheet keranjang
-        if (mounted) {
-          context.pop(); // balik dari layar Tambah Pesanan
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pesanan berhasil disimpan')),
-        );
-      }
+      Navigator.of(context).pop(); // tutup sheet keranjang
+      router.pop(); // balik dari layar Tambah Pesanan
+
+      messenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 6),
+          content: const Text('Pesanan berhasil disimpan'),
+          action: SnackBarAction(
+            label: 'Cetak Struk',
+            onPressed: () => ReceiptService.cetakStruk(order),
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -463,6 +468,47 @@ class _CartSheetState extends State<_CartSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // ----- Metode pembayaran (gaya pilihan Shopee) -----
+                          Text('Metode Pembayaran',
+                              style: AppTextStyles.bodyMedium),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _MetodeCard(
+                                  icon: Icons.payments_outlined,
+                                  label: 'Cash',
+                                  selected:
+                                      orderProvider.metodePembayaran == 'cash',
+                                  onTap: () => orderProvider
+                                      .setMetodePembayaran('cash'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _MetodeCard(
+                                  icon: Icons.qr_code_2,
+                                  label: 'QRIS',
+                                  selected:
+                                      orderProvider.metodePembayaran == 'qris',
+                                  onTap: () => orderProvider
+                                      .setMetodePembayaran('qris'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _MetodeCard(
+                                  icon: Icons.account_balance,
+                                  label: 'Transfer',
+                                  selected: orderProvider.metodePembayaran ==
+                                      'transfer',
+                                  onTap: () => orderProvider
+                                      .setMetodePembayaran('transfer'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
                           Row(
                             children: [
                               Expanded(
@@ -526,6 +572,58 @@ class _CartSheetState extends State<_CartSheet> {
           ),
         );
       },
+    );
+  }
+}
+
+class _MetodeCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MetodeCard({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.forestGreen : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.forestGreen : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color:
+                  selected ? AppColors.textOnGreen : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                color:
+                    selected ? AppColors.textOnGreen : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -16,7 +16,20 @@ class MenuScreen extends StatefulWidget {
 class _MenuScreenState extends State<MenuScreen> {
   final _searchController = TextEditingController();
   String _query = '';
-  String _tipeFilter = 'semua'; // 'semua' | 'makanan' | 'minuman'
+  String? _kategoriTerpilih; // null = Semua
+
+  /// Urutan tampil chip sesuai menu fisik; kategori di luar daftar
+  /// ini tetap muncul, ditaruh di paling belakang.
+  static const _urutanKategori = [
+    'Camilan',
+    'Snacks',
+    'Food',
+    'Manual Brew',
+    'Milk Based',
+    'Coffee Based',
+    'Non Coffee',
+    'Mocktail',
+  ];
 
   @override
   void initState() {
@@ -37,10 +50,11 @@ class _MenuScreenState extends State<MenuScreen> {
 
   List<MenuItem> _terapkanFilter(List<MenuItem> items) {
     return items.where((e) {
-      final cocokTipe = _tipeFilter == 'semua' || e.tipe == _tipeFilter;
+      final cocokKategori =
+          _kategoriTerpilih == null || e.kategori == _kategoriTerpilih;
       final cocokQuery =
           _query.isEmpty || e.nama.toLowerCase().contains(_query);
-      return cocokTipe && cocokQuery;
+      return cocokKategori && cocokQuery;
     }).toList();
   }
 
@@ -64,6 +78,36 @@ class _MenuScreenState extends State<MenuScreen> {
     }
   }
 
+  Widget _buildFilterChips(MenuProvider provider) {
+    final kategoris = [...provider.kategoriList]..sort((a, b) {
+        final ia = _urutanKategori.indexOf(a);
+        final ib = _urutanKategori.indexOf(b);
+        return (ia < 0 ? 999 : ia).compareTo(ib < 0 ? 999 : ib);
+      });
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _FilterChip(
+            label: 'Semua',
+            selected: _kategoriTerpilih == null,
+            onTap: () => setState(() => _kategoriTerpilih = null),
+          ),
+          for (final k in kategoris) ...[
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: k,
+              selected: _kategoriTerpilih == k,
+              onTap: () => setState(() => _kategoriTerpilih = k),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,29 +124,8 @@ class _MenuScreenState extends State<MenuScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _FilterChip(
-                  label: 'Semua',
-                  selected: _tipeFilter == 'semua',
-                  onTap: () => setState(() => _tipeFilter = 'semua'),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Makanan',
-                  selected: _tipeFilter == 'makanan',
-                  onTap: () => setState(() => _tipeFilter = 'makanan'),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Minuman',
-                  selected: _tipeFilter == 'minuman',
-                  onTap: () => setState(() => _tipeFilter = 'minuman'),
-                ),
-              ],
-            ),
+          Consumer<MenuProvider>(
+            builder: (context, provider, _) => _buildFilterChips(provider),
           ),
           const SizedBox(height: 8),
           Expanded(

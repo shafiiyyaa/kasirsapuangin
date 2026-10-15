@@ -52,6 +52,7 @@ class Order {
   final String id;
   final String? namaPelanggan; // opsional, bisa kosong buat walk-in
   final String? meja; // opsional, nomor meja pelanggan
+  final String metodePembayaran; // 'cash' | 'qris' | 'transfer'
   final int totalHarga;
   final OrderStatus status;
   final DateTime createdAt;
@@ -61,6 +62,7 @@ class Order {
     required this.id,
     this.namaPelanggan,
     this.meja,
+    this.metodePembayaran = 'cash',
     required this.totalHarga,
     required this.status,
     required this.createdAt,
@@ -72,6 +74,7 @@ class Order {
       id: map['id'] as String,
       namaPelanggan: map['nama_pelanggan'] as String?,
       meja: map['meja'] as String?,
+      metodePembayaran: (map['metode_pembayaran'] as String?) ?? 'cash',
       totalHarga: map['total_harga'] as int,
       status: OrderStatusX.fromDb(map['status'] as String),
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -84,6 +87,7 @@ class Order {
       'id': id,
       'nama_pelanggan': namaPelanggan,
       'meja': meja,
+      'metode_pembayaran': metodePembayaran,
       'total_harga': totalHarga,
       'status': status.dbValue,
       'created_at': createdAt.toIso8601String(),
@@ -95,6 +99,7 @@ class Order {
     return {
       'nama_pelanggan': namaPelanggan,
       'meja': meja,
+      'metode_pembayaran': metodePembayaran,
       'total_harga': totalHarga,
       'status': status.dbValue,
     };
@@ -103,6 +108,7 @@ class Order {
   Order copyWith({
     String? namaPelanggan,
     String? meja,
+    String? metodePembayaran,
     int? totalHarga,
     OrderStatus? status,
     List<OrderItem>? items,
@@ -111,6 +117,7 @@ class Order {
       id: id,
       namaPelanggan: namaPelanggan ?? this.namaPelanggan,
       meja: meja ?? this.meja,
+      metodePembayaran: metodePembayaran ?? this.metodePembayaran,
       totalHarga: totalHarga ?? this.totalHarga,
       status: status ?? this.status,
       createdAt: createdAt,

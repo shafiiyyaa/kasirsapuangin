@@ -27,6 +27,8 @@ dependencies:
   google_fonts: ^6.2.1
 
   cupertino_icons: ^1.0.8
+  printing: ^5.14.3
+  pdf: 3.11.2
 
 dev_dependencies:
   flutter_test:
