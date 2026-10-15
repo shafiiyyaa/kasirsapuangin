@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../menu_board/models/menu_item.dart';
 import '../../../menu_board/providers/menu_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../widgets/app_scaffold.dart';
 import '../../widgets/menu_item_card.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -18,8 +19,6 @@ class _MenuScreenState extends State<MenuScreen> {
   String _query = '';
   String? _kategoriTerpilih; // null = Semua
 
-  /// Urutan tampil chip sesuai menu fisik; kategori di luar daftar
-  /// ini tetap muncul, ditaruh di paling belakang.
   static const _urutanKategori = [
     'Camilan',
     'Snacks',
@@ -111,7 +110,14 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Menu')),
+      appBar: AppBar(
+        title: const Text('Menu'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Buka menu',
+          onPressed: () => AppScaffold.openMenu(context),
+        ),
+      ),
       body: Column(
         children: [
           Padding(
@@ -258,7 +264,7 @@ class _KategoriSection extends StatelessWidget {
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.5,
+            childAspectRatio: 1.3,
           ),
           itemBuilder: (context, index) {
             final item = items[index];

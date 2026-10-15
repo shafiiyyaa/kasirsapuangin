@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../menu_board/models/order.dart';
+import '../../menu_board/providers/order_provider.dart';
 import '../services/receipt_service.dart';
 
 void showOrderDetail(BuildContext context, Order order) {
@@ -18,6 +20,46 @@ class OrderDetailSheet extends StatelessWidget {
 
   String _rupiah(int n) =>
       n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+
+  Future<void> _hapus(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus pesanan?'),
+        content: Text(
+          'Pesanan atas nama ${order.namaPelanggan ?? "-"} '
+          '(${_rupiah(order.totalHarga)}) akan dihapus permanen. Lanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    // Context dipakai SEBELUM async gap, hasilnya disimpan dulu.
+    final provider = context.read<OrderProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await provider.hapusPesanan(order.id);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Gagal menghapus pesanan: $e')),
+      );
+      return;
+    }
+    navigator.pop();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +89,11 @@ class OrderDetailSheet extends StatelessWidget {
                 onPressed: () => ReceiptService.cetakStruk(order),
               ),
               IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                tooltip: 'Hapus Pesanan',
+                onPressed: () => _hapus(context),
+              ),
+              IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.pop(context),
               ),
@@ -55,7 +102,8 @@ class OrderDetailSheet extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Atas nama: ${order.namaPelanggan ?? '-'}'),
           Text('Meja: ${order.meja ?? '-'}'),
-          Text('Pembayaran: ${ReceiptService.metodeLabel(order.metodePembayaran)}'),
+          Text(
+              'Pembayaran: ${ReceiptService.metodeLabel(order.metodePembayaran)}'),
           Text('Status: ${order.status.label}'),
           const Divider(height: 24),
           if (items.isEmpty)

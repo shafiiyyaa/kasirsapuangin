@@ -47,11 +47,10 @@ extension OrderStatusX on OrderStatus {
 }
 
 /// Model untuk satu pesanan (tabel `orders`).
-/// `items` diisi terpisah lewat join/query ke `order_items`.
 class Order {
   final String id;
-  final String? namaPelanggan; // opsional, bisa kosong buat walk-in
-  final String? meja; // opsional, nomor meja pelanggan
+  final String? namaPelanggan;
+  final String? meja;
   final String metodePembayaran; // 'cash' | 'qris' | 'transfer'
   final int totalHarga;
   final OrderStatus status;
@@ -77,7 +76,9 @@ class Order {
       metodePembayaran: (map['metode_pembayaran'] as String?) ?? 'cash',
       totalHarga: map['total_harga'] as int,
       status: OrderStatusX.fromDb(map['status'] as String),
-      createdAt: DateTime.parse(map['created_at'] as String),
+      // Supabase menyimpan UTC -> konversi ke zona waktu perangkat (WIB)
+      // di sini, biar semua layaran otomatis tampil jam lokal.
+      createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
       items: items ?? const [],
     );
   }
@@ -94,7 +95,6 @@ class Order {
     };
   }
 
-  /// Dipakai saat insert pesanan baru (tanpa id & created_at).
   Map<String, dynamic> toInsertMap() {
     return {
       'nama_pelanggan': namaPelanggan,

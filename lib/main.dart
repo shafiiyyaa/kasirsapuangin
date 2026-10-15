@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'menu_board/providers/menu_provider.dart';
 import 'menu_board/providers/order_provider.dart';
+import 'menu_board/providers/pengeluaran_provider.dart';
 import 'menu_board/router/app_router.dart';
 import 'menu_board/services/supabase_service.dart';
 
@@ -21,6 +22,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => MenuProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => PengeluaranProvider()),
       ],
       child: MaterialApp.router(
         title: 'Kasir Sapuangin',

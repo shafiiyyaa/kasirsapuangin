@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../menu_board/models/order.dart';
 import '../../../menu_board/providers/menu_provider.dart';
 import '../../../menu_board/providers/order_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../widgets/app_scaffold.dart';
 import '../../widgets/order_detail_sheet.dart';
 import '../../widgets/order_list_tile.dart';
-import '../../widgets/stat_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -32,11 +33,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ]);
   }
 
+  Future<bool> _konfirmasiHapus(Order order) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Hapus pesanan?'),
+            content: Text(
+              'Pesanan atas nama ${order.namaPelanggan ?? "-"} '
+              '(${_formatRupiah(order.totalHarga)}) akan dihapus permanen. '
+              'Lanjutkan?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Hapus'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _hapusPesanan(Order order) async {
+    final ok = await _konfirmasiHapus(order);
+    if (!ok || !mounted) return;
+
+    final provider = context.read<OrderProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await provider.hapusPesanan(order.id);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pesanan dihapus')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Gagal menghapus pesanan: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Buka menu',
+          onPressed: () => AppScaffold.openMenu(context),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -62,27 +113,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisCount: jumlahKolom,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: jumlahKolom == 4 ? 1.3 : 1.6,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: jumlahKolom == 4 ? 3.4 : 2.6,
                   children: [
-                    StatCard(
+                    _StatMini(
                       label: 'Pesanan Hari Ini',
                       value: '${orderProvider.ringkasanJumlahPesanan}',
                       icon: Icons.receipt_long_outlined,
                     ),
-                    StatCard(
+                    _StatMini(
                       label: 'Pendapatan Hari Ini',
                       value:
                           _formatRupiah(orderProvider.ringkasanTotalPendapatan),
                       icon: Icons.payments_outlined,
                     ),
-                    StatCard(
+                    _StatMini(
                       label: 'Menu Tersedia',
                       value: '$jumlahMenuTersedia',
                       icon: Icons.restaurant_menu_outlined,
                     ),
-                    StatCard(
+                    _StatMini(
                       label: 'Status',
                       value: menuProvider.isLoading ||
                               orderProvider.isLoadingRingkasan
@@ -135,6 +186,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       .map(
                         (o) => InkWell(
                           onTap: () => showOrderDetail(context, o),
+                          onLongPress: () => _hapusPesanan(o),
                           borderRadius: BorderRadius.circular(12),
                           child: OrderListTile(order: o),
                         ),
@@ -145,6 +197,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Kartu statistik ringkas.
+class _StatMini extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _StatMini({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value, style: AppTextStyles.priceLarge),
+          ),
+        ],
       ),
     );
   }

@@ -1,16 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../tambah_pesanan/screens/dashboard/dashboard_screen.dart';
 import '../../tambah_pesanan/screens/menu/menu_screen.dart';
 import '../../tambah_pesanan/screens/order/add_order_screen.dart';
+import '../../tambah_pesanan/screens/order_history/order_history_screen.dart';
+import '../../tambah_pesanan/screens/pengeluaran/pengeluaran_screen.dart';
+import '../../tambah_pesanan/screens/statistik/statistik_screen.dart';
 import '../../tambah_pesanan/widgets/app_scaffold.dart';
 
 /// Konfigurasi rute aplikasi.
-/// Dashboard, Menu, dan Riwayat dibungkus AppScaffold (bottom nav +
-/// tombol tambah pesanan di tengah). Tambah Pesanan sengaja TIDAK
-/// dibungkus AppScaffold — dia full-screen, dibuka lewat tombol "+"
-/// dan ditutup lagi setelah pesanan disimpan.
+/// Beranda, Menu, dan Riwayat dibungkus AppScaffold (bottom nav +
+/// drawer). Statistik & Pengeluaran dibuka penuh (punya tombol back).
+/// Tambah Pesanan full-screen, dibuka lewat tombol "+".
 class AppRouter {
   AppRouter._();
 
@@ -38,8 +39,18 @@ class AppRouter {
         name: 'riwayat',
         builder: (context, state) => const AppScaffold(
           currentIndex: 2,
-          child: _PlaceholderScreen(judul: 'Riwayat Pesanan'),
+          child: OrderHistoryScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/statistik',
+        name: 'statistik',
+        builder: (context, state) => const StatistikScreen(),
+      ),
+      GoRoute(
+        path: '/pengeluaran',
+        name: 'pengeluaran',
+        builder: (context, state) => const PengeluaranScreen(),
       ),
       GoRoute(
         path: '/tambah-pesanan',
@@ -48,19 +59,4 @@ class AppRouter {
       ),
     ],
   );
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String judul;
-  const _PlaceholderScreen({required this.judul});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(judul)),
-      body: Center(
-        child: Text('Halaman $judul menyusul.'),
-      ),
-    );
-  }
 }

@@ -129,6 +129,15 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Hapus pesanan permanen (beserta item-itemnya) dari Supabase.
+  Future<void> hapusPesanan(String orderId) async {
+    await SupabaseService.hapusOrder(orderId);
+    _orders = _orders.where((o) => o.id != orderId).toList();
+    notifyListeners();
+    // Ringkasan dashboard ikut di-refresh (jumlah/pendapatan hari ini).
+    loadRingkasanHariIni();
+  }
+
   // ---------- Dashboard ----------
   int ringkasanJumlahPesanan = 0;
   int ringkasanTotalPendapatan = 0;

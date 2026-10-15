@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/app_theme.dart';
+import 'app_drawer.dart';
 
-/// Shell navigasi utama: bottom nav 3 menu + tombol tambah pesanan
-/// berbentuk FAB bulat mengambang di pojok kanan bawah.
+/// Shell navigasi utama: bottom nav 3 menu + FAB tambah pesanan
+/// (hanya Dashboard) + drawer menu samping. Halaman-halaman dalam
+/// bisa membuka drawer lewat [AppScaffold.openMenu].
 class AppScaffold extends StatelessWidget {
-  /// 0 = Dashboard, 1 = Menu, 2 = Riwayat
+  /// 0 = Beranda, 1 = Menu, 2 = Riwayat
   final int currentIndex;
   final Widget child;
 
@@ -16,18 +18,32 @@ class AppScaffold extends StatelessWidget {
     required this.child,
   });
 
+  /// Dipanggil dari AppBar halaman dalam (Dashboard/Menu/Riwayat)
+  /// untuk membuka drawer milik AppScaffold.
+  static void openMenu(BuildContext context) {
+    context.findAncestorWidgetOfExactType<_MenuHook>()?.onOpen();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/tambah-pesanan'),
-        backgroundColor: AppColors.gold,
-        foregroundColor: AppColors.forestGreenDark,
-        elevation: 4,
-        shape: const CircleBorder(), // bulat
-        child: const Icon(Icons.add, size: 28),
+      drawer: AppDrawer(currentIndex: currentIndex),
+      body: Builder(
+        builder: (bodyContext) => _MenuHook(
+          onOpen: () => Scaffold.of(bodyContext).openDrawer(),
+          child: child,
+        ),
       ),
+      floatingActionButton: currentIndex == 0
+          ? FloatingActionButton(
+              onPressed: () => context.push('/tambah-pesanan'),
+              backgroundColor: AppColors.gold,
+              foregroundColor: AppColors.forestGreenDark,
+              elevation: 4,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, size: 28),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomAppBar(
         color: AppColors.surface,
@@ -37,7 +53,7 @@ class AppScaffold extends StatelessWidget {
           children: [
             _NavButton(
               icon: Icons.space_dashboard_outlined,
-              label: 'Dashboard',
+              label: 'Beranda',
               selected: currentIndex == 0,
               onTap: () => context.go('/'),
             ),
@@ -58,6 +74,16 @@ class AppScaffold extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Penghubung antara halaman dalam dan drawer AppScaffold.
+class _MenuHook extends InheritedWidget {
+  final VoidCallback onOpen;
+
+  const _MenuHook({required this.onOpen, required super.child});
+
+  @override
+  bool updateShouldNotify(_MenuHook oldWidget) => false;
 }
 
 class _NavButton extends StatelessWidget {

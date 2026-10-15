@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/menu_item.dart';
 import '../models/order.dart';
 import '../models/order_item.dart';
+import '../models/pengeluaran.dart';
 
 const String supabaseUrl = 'https://nbsemkswjlvnzwwlyhhg.supabase.co';
 const String supabasePublishableKey =
@@ -100,7 +101,7 @@ class SupabaseService {
     return order.copyWith(items: orderItems);
   }
 
-  static Future<List<Order>> fetchOrders({int limit = 50}) async {
+  static Future<List<Order>> fetchOrders({int limit = 200}) async {
     final data = await client
         .from('orders')
         .select('*, order_items(*)')
@@ -117,11 +118,59 @@ class SupabaseService {
     }).toList();
   }
 
+  /// Pesanan pada rentang tanggal [awal, akhir) — tanpa rincian item,
+  /// cukup untuk rekap statistik.
+  static Future<List<Order>> fetchOrdersPeriode(
+      DateTime awal, DateTime akhir) async {
+    final data = await client
+        .from('orders')
+        .select(
+            'id, nama_pelanggan, meja, metode_pembayaran, total_harga, status, created_at')
+        .gte('created_at', awal.toUtc().toIso8601String())
+        .lt('created_at', akhir.toUtc().toIso8601String())
+        .order('created_at', ascending: false);
+    return (data as List)
+        .map((e) => Order.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
   static Future<void> updateOrderStatus(
       String orderId, OrderStatus status) async {
     await client
         .from('orders')
         .update({'status': status.dbValue}).eq('id', orderId);
+  }
+
+  /// Hapus pesanan: bersihkan dulu order_items-nya, baru orders-nya.
+  static Future<void> hapusOrder(String orderId) async {
+    await client.from('order_items').delete().eq('order_id', orderId);
+    await client.from('orders').delete().eq('id', orderId);
+  }
+
+  // ---------- PENGELUARAN ----------
+
+  static Future<List<Pengeluaran>> fetchPengeluaran() async {
+    final data = await client
+        .from('pengeluaran')
+        .select()
+        .order('tanggal', ascending: false)
+        .limit(500);
+    return (data as List)
+        .map((e) => Pengeluaran.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<Pengeluaran> addPengeluaran(Pengeluaran p) async {
+    final data = await client
+        .from('pengeluaran')
+        .insert(p.toInsertMap())
+        .select()
+        .single();
+    return Pengeluaran.fromMap(data);
+  }
+
+  static Future<void> hapusPengeluaran(String id) async {
+    await client.from('pengeluaran').delete().eq('id', id);
   }
 
   // ---------- DASHBOARD ----------
