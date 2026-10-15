@@ -9,6 +9,9 @@ const _namaBulan = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
+String _formatRupiah(int n) =>
+    n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+
 class PengeluaranScreen extends StatefulWidget {
   const PengeluaranScreen({super.key});
 
@@ -24,9 +27,6 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
       context.read<PengeluaranProvider>().loadPengeluaran();
     });
   }
-
-  String _rupiah(int n) =>
-      n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
 
   String _labelTanggal(DateTime d) =>
       '${d.day} ${_namaBulan[d.month - 1]} ${d.year}';
@@ -76,6 +76,52 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
     }
   }
 
+  /// Pesan error yang ramah, khususnya kalau tabelnya belum dibuat.
+  Widget _pesanError(String error) {
+    final tabelBelumAda =
+        error.contains('does not exist') || error.contains('404');
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(error, textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium),
+            if (tabelBelumAda) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Tabel "pengeluaran" belum ada di Supabase.\n'
+                  'Jalankan SQL berikut di SQL Editor:\n\n'
+                  'create table pengeluaran (\n'
+                  '  id uuid primary key default gen_random_uuid(),\n'
+                  '  keterangan text not null,\n'
+                  '  jumlah int4 not null,\n'
+                  '  tanggal date not null default current_date,\n'
+                  '  created_at timestamptz not null default now()\n'
+                  ');',
+                  style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () =>
+                  context.read<PengeluaranProvider>().loadPengeluaran(),
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PengeluaranProvider>();
@@ -94,10 +140,7 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
       body: provider.isLoading && provider.items.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : provider.error != null && provider.items.isEmpty
-              ? Center(
-                  child: Text(provider.error!,
-                      style: AppTextStyles.bodyMedium),
-                )
+              ? _pesanError(provider.error!)
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   children: [
@@ -115,7 +158,7 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
                           Text('Pengeluaran bulan ini',
                               style: AppTextStyles.bodyLarge),
                           Text(
-                            'Rp${_rupiah(totalBulanIni)}',
+                            'Rp${_formatRupiah(totalBulanIni)}',
                             style: AppTextStyles.priceLarge
                                 .copyWith(color: AppColors.statusBatal),
                           ),
@@ -150,7 +193,7 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('-Rp${_rupiah(p.jumlah)}',
+                              Text('-Rp${_formatRupiah(p.jumlah)}',
                                   style: AppTextStyles.price.copyWith(
                                       color: AppColors.statusBatal)),
                               IconButton(
@@ -168,7 +211,7 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
   }
 }
 
-/// Form tambah pengeluaran: keterangan, jumlah, tanggal.
+/// Form tambah pengeluaran: keterangan, jumlah (auto-format rupiah), tanggal.
 class _FormPengeluaran extends StatefulWidget {
   const _FormPengeluaran();
 
@@ -182,8 +225,11 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
   DateTime _tanggal = DateTime.now();
   bool _menyimpan = false;
 
-  String _labelTanggal(DateTime d) =>
-      '${d.day} ${_namaBulan[d.month - 1]} ${d.year}';
+  @override
+  void initState() {
+    super.initState();
+    _jumlahController.addListener(_formatJumlah);
+  }
 
   @override
   void dispose() {
@@ -192,11 +238,24 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
     super.dispose();
   }
 
+  /// Format live: ketik "10000" -> tampil "10.000".
+  void _formatJumlah() {
+    final digits =
+        _jumlahController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return;
+    final formatted = _formatRupiah(int.parse(digits));
+    if (formatted == _jumlahController.text) return;
+    _jumlahController.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
   Future<void> _simpan() async {
     final keterangan = _keteranganController.text.trim();
-    final jumlah = int.tryParse(
-            _jumlahController.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
-        0;
+    final digits =
+        _jumlahController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final jumlah = int.tryParse(digits) ?? 0;
 
     if (keterangan.isEmpty || jumlah <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -219,7 +278,9 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
       );
       navigator.pop();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Pengeluaran dicatat')),
+        SnackBar(
+            content: Text(
+                'Tercatat: $keterangan (Rp${_formatRupiah(jumlah)})')),
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -232,8 +293,8 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.background,
@@ -244,8 +305,7 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Catat Pengeluaran',
-                style: AppTextStyles.displayMedium),
+            Text('Catat Pengeluaran', style: AppTextStyles.displayMedium),
             const SizedBox(height: 16),
             TextField(
               controller: _keteranganController,
@@ -259,8 +319,8 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
               controller: _jumlahController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                hintText: 'Jumlah (mis. 150000)',
-                prefixText: 'Rp',
+                hintText: 'Jumlah',
+                prefixText: 'Rp ',
               ),
             ),
             const SizedBox(height: 12),
@@ -278,8 +338,8 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
               },
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
@@ -288,7 +348,8 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
                   children: [
                     const Icon(Icons.calendar_today_outlined, size: 18),
                     const SizedBox(width: 10),
-                    Text(_labelTanggal(_tanggal),
+                    Text(
+                      '${_tanggal.day} ${_namaBulan[_tanggal.month - 1]} ${_tanggal.year}',
                         style: AppTextStyles.bodyMedium),
                   ],
                 ),

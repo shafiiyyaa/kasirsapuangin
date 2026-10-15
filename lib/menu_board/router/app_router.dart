@@ -9,8 +9,8 @@ import '../../tambah_pesanan/screens/statistik/statistik_screen.dart';
 import '../../tambah_pesanan/widgets/app_scaffold.dart';
 
 /// Konfigurasi rute aplikasi.
-/// Beranda, Menu, dan Riwayat dibungkus AppScaffold (bottom nav +
-/// drawer). Statistik & Pengeluaran dibuka penuh (punya tombol back).
+/// Beranda, Menu, dan Riwayat dibungkus AppScaffold (drawer + FAB).
+/// Statistik & Pengeluaran dibuka penuh (punya tombol back sendiri).
 /// Tambah Pesanan full-screen, dibuka lewat tombol "+".
 class AppRouter {
   AppRouter._();
