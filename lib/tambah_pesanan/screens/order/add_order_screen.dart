@@ -21,6 +21,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _kategoriTerpilih;
+  bool _tampilanList = false; // false = grid, true = list
 
   static const _urutanKategori = [
     'Camilan',
@@ -128,6 +129,17 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            tooltip: _tampilanList ? 'Tampilan grid' : 'Tampilan list',
+            icon: Icon(
+              _tampilanList
+                  ? Icons.grid_view_outlined
+                  : Icons.view_list_outlined,
+            ),
+            onPressed: () => setState(() => _tampilanList = !_tampilanList),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -197,6 +209,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       judul: entry.key,
                       items: entry.value,
                       onTap: _tambahCepat,
+                      tampilanList: _tampilanList,
                     );
                   }).toList(),
                 );
@@ -260,11 +273,13 @@ class _KategoriSection extends StatelessWidget {
   final String judul;
   final List<MenuItem> items;
   final ValueChanged<MenuItem> onTap;
+  final bool tampilanList;
 
   const _KategoriSection({
     required this.judul,
     required this.items,
     required this.onTap,
+    required this.tampilanList,
   });
 
   @override
@@ -276,28 +291,52 @@ class _KategoriSection extends StatelessWidget {
           padding: const EdgeInsets.only(top: 16, bottom: 8),
           child: Text(judul, style: AppTextStyles.displayMedium),
         ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.5,
+        if (tampilanList)
+          Column(
+            children: [
+              for (final item in items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: MenuItemListTile(
+                    item: item,
+                    onTap: () => onTap(item),
+                    trailing: const Icon(
+                      Icons.add_circle,
+                      color: AppColors.forestGreen,
+                    ),
+                  ),
+                ),
+            ],
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final kolom = kolomMenuUntukLebar(constraints.maxWidth);
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: items.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: kolom,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  mainAxisExtent: tinggiKartuMenu(kolom),
+                ),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return MenuItemCard(
+                    item: item,
+                    onTap: () => onTap(item),
+                    trailing: const Icon(
+                      Icons.add_circle,
+                      color: AppColors.forestGreen,
+                    ),
+                  );
+                },
+              );
+            },
           ),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return MenuItemCard(
-              item: item,
-              onTap: () => onTap(item),
-              trailing: const Icon(
-                Icons.add_circle,
-                color: AppColors.forestGreen,
-              ),
-            );
-          },
-        ),
       ],
     );
   }

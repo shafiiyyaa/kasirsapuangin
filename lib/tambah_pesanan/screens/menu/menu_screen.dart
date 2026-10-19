@@ -18,6 +18,7 @@ class _MenuScreenState extends State<MenuScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _kategoriTerpilih; // null = Semua
+  bool _tampilanList = false; // false = grid, true = list
 
   static const _urutanKategori = [
     'Camilan',
@@ -117,6 +118,17 @@ class _MenuScreenState extends State<MenuScreen> {
           tooltip: 'Buka menu',
           onPressed: () => AppScaffold.openMenu(context),
         ),
+        actions: [
+          IconButton(
+            tooltip: _tampilanList ? 'Tampilan grid' : 'Tampilan list',
+            icon: Icon(
+              _tampilanList
+                  ? Icons.grid_view_outlined
+                  : Icons.view_list_outlined,
+            ),
+            onPressed: () => setState(() => _tampilanList = !_tampilanList),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -186,6 +198,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         judul: entry.key,
                         items: entry.value,
                         onToggleTersedia: _toggleTersedia,
+                        tampilanList: _tampilanList,
                       );
                     }).toList(),
                   ),
@@ -240,12 +253,23 @@ class _KategoriSection extends StatelessWidget {
   final String judul;
   final List<MenuItem> items;
   final ValueChanged<MenuItem> onToggleTersedia;
+  final bool tampilanList;
 
   const _KategoriSection({
     required this.judul,
     required this.items,
     required this.onToggleTersedia,
+    required this.tampilanList,
   });
+
+  Widget _switch(MenuItem item) {
+    return Switch(
+      value: item.tersedia,
+      onChanged: (_) => onToggleTersedia(item),
+      activeThumbColor: AppColors.forestGreen,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -256,28 +280,44 @@ class _KategoriSection extends StatelessWidget {
           padding: const EdgeInsets.only(top: 16, bottom: 8),
           child: Text(judul, style: AppTextStyles.displayMedium),
         ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.3,
+        if (tampilanList)
+          Column(
+            children: [
+              for (final item in items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: MenuItemListTile(
+                    item: item,
+                    trailing: _switch(item),
+                  ),
+                ),
+            ],
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final kolom = kolomMenuUntukLebar(constraints.maxWidth);
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: items.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: kolom,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  mainAxisExtent: tinggiKartuMenu(kolom),
+                ),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return MenuItemCard(
+                    item: item,
+                    trailing: _switch(item),
+                  );
+                },
+              );
+            },
           ),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return MenuItemCard(
-              item: item,
-              trailing: Switch(
-                value: item.tersedia,
-                onChanged: (_) => onToggleTersedia(item),
-                activeThumbColor: AppColors.forestGreen,
-              ),
-            );
-          },
-        ),
       ],
     );
   }

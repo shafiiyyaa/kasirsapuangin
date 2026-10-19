@@ -5,8 +5,18 @@ import '../../../menu_board/providers/pengeluaran_provider.dart';
 import '../../../theme/app_theme.dart';
 
 const _namaBulan = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
 ];
 
 String _formatRupiah(int n) =>
@@ -86,8 +96,8 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(error, textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium),
+            Text(error,
+                textAlign: TextAlign.center, style: AppTextStyles.bodyMedium),
             if (tabelBelumAda) ...[
               const SizedBox(height: 12),
               Container(
@@ -188,17 +198,17 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
                           title: Text(p.keterangan,
                               style: AppTextStyles.bodyLarge),
                           subtitle: Text(_labelTanggal(p.tanggal),
-                              style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textSecondary)),
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(color: AppColors.textSecondary)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text('-Rp${_formatRupiah(p.jumlah)}',
-                                  style: AppTextStyles.price.copyWith(
-                                      color: AppColors.statusBatal)),
+                                  style: AppTextStyles.price
+                                      .copyWith(color: AppColors.statusBatal)),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 20),
+                                icon:
+                                    const Icon(Icons.delete_outline, size: 20),
                                 onPressed: () => _hapus(p.id),
                               ),
                             ],
@@ -211,7 +221,8 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
   }
 }
 
-/// Form tambah pengeluaran: keterangan, jumlah (auto-format rupiah), tanggal.
+/// Form tambah pengeluaran: keterangan, jumlah (qty) + harga satuan
+/// (total dihitung otomatis), dan tanggal.
 class _FormPengeluaran extends StatefulWidget {
   const _FormPengeluaran();
 
@@ -221,46 +232,67 @@ class _FormPengeluaran extends StatefulWidget {
 
 class _FormPengeluaranState extends State<_FormPengeluaran> {
   final _keteranganController = TextEditingController();
-  final _jumlahController = TextEditingController();
+  final _qtyController = TextEditingController();
+  final _hargaController = TextEditingController();
   DateTime _tanggal = DateTime.now();
   bool _menyimpan = false;
 
   @override
   void initState() {
     super.initState();
-    _jumlahController.addListener(_formatJumlah);
+    _qtyController.addListener(_refreshTotal);
+    _hargaController.addListener(_formatHarga);
   }
 
   @override
   void dispose() {
     _keteranganController.dispose();
-    _jumlahController.dispose();
+    _qtyController.dispose();
+    _hargaController.dispose();
     super.dispose();
   }
 
-  /// Format live: ketik "10000" -> tampil "10.000".
-  void _formatJumlah() {
-    final digits =
-        _jumlahController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return;
-    final formatted = _formatRupiah(int.parse(digits));
-    if (formatted == _jumlahController.text) return;
-    _jumlahController.value = TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
+  /// Format live harga satuan: ketik "15000" -> tampil "15.000".
+  void _formatHarga() {
+    final digits = _hargaController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty) {
+      final formatted = _formatRupiah(int.parse(digits));
+      if (formatted != _hargaController.text) {
+        _hargaController.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+        return; // value berubah -> listener terpanggil lagi -> total ke-refresh
+      }
+    }
+    _refreshTotal();
   }
+
+  void _refreshTotal() {
+    if (mounted) setState(() {});
+  }
+
+  /// Qty kosong / 0 dianggap 1, biar belanja satuan gak perlu isi qty.
+  int get _qty {
+    final v = int.tryParse(_qtyController.text.trim());
+    return (v == null || v <= 0) ? 1 : v;
+  }
+
+  int get _hargaSatuan {
+    final digits = _hargaController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(digits) ?? 0;
+  }
+
+  int get _totalHarga => _qty * _hargaSatuan;
 
   Future<void> _simpan() async {
     final keterangan = _keteranganController.text.trim();
-    final digits =
-        _jumlahController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final jumlah = int.tryParse(digits) ?? 0;
+    final total = _totalHarga;
 
-    if (keterangan.isEmpty || jumlah <= 0) {
+    if (keterangan.isEmpty || total <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Isi keterangan dan jumlahnya dulu ya')),
+            content: Text('Isi keterangan dan harga satuannya dulu ya')),
       );
       return;
     }
@@ -273,14 +305,13 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
     try {
       await provider.tambah(
         keterangan: keterangan,
-        jumlah: jumlah,
+        jumlah: total, // TOTAL harga yang tersimpan di database
         tanggal: _tanggal,
       );
       navigator.pop();
       messenger.showSnackBar(
         SnackBar(
-            content: Text(
-                'Tercatat: $keterangan (Rp${_formatRupiah(jumlah)})')),
+            content: Text('Tercatat: $keterangan (Rp${_formatRupiah(total)})')),
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -301,76 +332,118 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Catat Pengeluaran', style: AppTextStyles.displayMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _keteranganController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Kebutuhan apa? (mis. Susu, Kopi, Gas)',
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Catat Pengeluaran', style: AppTextStyles.displayMedium),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _keteranganController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  hintText: 'Kebutuhan apa? (mis. Susu, Kopi, Gas)',
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _jumlahController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: 'Jumlah',
-                prefixText: 'Rp ',
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _qtyController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'Jumlah (kosongkan = 1)',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _hargaController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'Harga satuan',
+                        prefixText: 'Rp ',
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _tanggal,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null && mounted) {
-                  setState(() => _tanggal = picked);
-                }
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
+              const SizedBox(height: 12),
+              // Total harga otomatis: jumlah x harga satuan.
+              Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
+                  color: AppColors.gold.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: AppColors.gold.withOpacity(0.5)),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 18),
-                    const SizedBox(width: 10),
+                    Text('Total Harga', style: AppTextStyles.bodyLarge),
                     Text(
-                      '${_tanggal.day} ${_namaBulan[_tanggal.month - 1]} ${_tanggal.year}',
-                        style: AppTextStyles.bodyMedium),
+                      'Rp${_formatRupiah(_totalHarga)}',
+                      style: AppTextStyles.priceLarge
+                          .copyWith(color: AppColors.forestGreenDark),
+                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _menyimpan ? null : _simpan,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _tanggal,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null && mounted) {
+                    setState(() => _tanggal = picked);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, size: 18),
+                      const SizedBox(width: 10),
+                      Text(
+                          '${_tanggal.day} ${_namaBulan[_tanggal.month - 1]} ${_tanggal.year}',
+                          style: AppTextStyles.bodyMedium),
+                    ],
+                  ),
+                ),
               ),
-              child: _menyimpan
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Simpan'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _menyimpan ? null : _simpan,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                child: _menyimpan
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Simpan'),
+              ),
+            ],
+          ),
         ),
       ),
     );
