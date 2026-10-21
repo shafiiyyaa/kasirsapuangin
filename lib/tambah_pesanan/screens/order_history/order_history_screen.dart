@@ -10,8 +10,18 @@ import '../../widgets/order_list_tile.dart';
 
 const _hariPendek = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const _bulan = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
 ];
 
 class OrderHistoryScreen extends StatefulWidget {
@@ -30,8 +40,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     });
   }
 
-  String _rupiah(int n) =>
-      n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+  String _rupiah(int n) => n
+      .toString()
+      .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
 
   String _labelHari(DateTime d) =>
       '${_hariPendek[d.weekday - 1]}, ${d.day} ${_bulan[d.month - 1]} ${d.year}';
@@ -101,29 +112,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       ),
       body: Consumer<OrderProvider>(
         builder: (context, orderProvider, _) {
-          if (orderProvider.isLoadingOrders &&
-              orderProvider.orders.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (orderProvider.ordersError != null &&
-              orderProvider.orders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(orderProvider.ordersError!,
-                      style: AppTextStyles.bodyMedium),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: () => orderProvider.loadOrders(),
-                    child: const Text('Coba Lagi'),
-                  ),
-                ],
-              ),
-            );
-          }
-
           if (orderProvider.orders.isEmpty) {
             return const Center(child: Text('Belum ada pesanan.'));
           }
@@ -234,7 +222,7 @@ class _HariBucket {
   int get jumlah => orders.length;
   // Pendapatan tidak menghitung pesanan yang dibatalkan.
   int get pendapatan => orders
-      .where((o) => o.status != OrderStatus.batal)
+      .where((o) => o.status.name != 'batal')
       .fold(0, (sum, o) => sum + o.totalHarga);
 }
 

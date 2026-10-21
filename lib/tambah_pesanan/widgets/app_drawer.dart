@@ -75,7 +75,7 @@ class AppDrawer extends StatelessWidget {
               onTap: () => _pindah(context, '/pengeluaran', push: true),
             ),
             const Divider(),
-            _MenuItem(
+            const _MenuItem(
               icon: Icons.settings_outlined,
               label: 'Pengaturan',
               selected: false,

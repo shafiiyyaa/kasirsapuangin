@@ -1,5 +1,11 @@
 import 'order_item.dart';
 
+/// Re-export: class OrderItem & CartItem aslinya cukup satu di
+/// order_item.dart. Baris ini bikin file yang import order.dart
+/// tetap otomatis dapat OrderItem & CartItem — tanpa duplikat,
+/// tanpa bentrok import.
+export 'order_item.dart';
+
 /// Status pesanan, disimpan sebagai text di kolom `status` tabel `orders`.
 enum OrderStatus { baru, diproses, selesai, batal }
 
@@ -51,6 +57,7 @@ class Order {
   final String id;
   final String? namaPelanggan;
   final String? meja;
+  final String? kasir;
   final String metodePembayaran; // 'cash' | 'qris' | 'transfer'
   final int totalHarga;
   final OrderStatus status;
@@ -61,6 +68,7 @@ class Order {
     required this.id,
     this.namaPelanggan,
     this.meja,
+    this.kasir,
     this.metodePembayaran = 'cash',
     required this.totalHarga,
     required this.status,
@@ -73,11 +81,12 @@ class Order {
       id: map['id'] as String,
       namaPelanggan: map['nama_pelanggan'] as String?,
       meja: map['meja'] as String?,
+      kasir: map['kasir'] as String?,
       metodePembayaran: (map['metode_pembayaran'] as String?) ?? 'cash',
       totalHarga: map['total_harga'] as int,
       status: OrderStatusX.fromDb(map['status'] as String),
       // Supabase menyimpan UTC -> konversi ke zona waktu perangkat (WIB)
-      // di sini, biar semua layaran otomatis tampil jam lokal.
+      // di sini, biar semua layar otomatis tampil jam lokal.
       createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
       items: items ?? const [],
     );
@@ -88,6 +97,7 @@ class Order {
       'id': id,
       'nama_pelanggan': namaPelanggan,
       'meja': meja,
+      'kasir': kasir,
       'metode_pembayaran': metodePembayaran,
       'total_harga': totalHarga,
       'status': status.dbValue,
@@ -99,6 +109,7 @@ class Order {
     return {
       'nama_pelanggan': namaPelanggan,
       'meja': meja,
+      'kasir': kasir,
       'metode_pembayaran': metodePembayaran,
       'total_harga': totalHarga,
       'status': status.dbValue,
@@ -108,6 +119,7 @@ class Order {
   Order copyWith({
     String? namaPelanggan,
     String? meja,
+    String? kasir,
     String? metodePembayaran,
     int? totalHarga,
     OrderStatus? status,
@@ -117,6 +129,7 @@ class Order {
       id: id,
       namaPelanggan: namaPelanggan ?? this.namaPelanggan,
       meja: meja ?? this.meja,
+      kasir: kasir ?? this.kasir,
       metodePembayaran: metodePembayaran ?? this.metodePembayaran,
       totalHarga: totalHarga ?? this.totalHarga,
       status: status ?? this.status,

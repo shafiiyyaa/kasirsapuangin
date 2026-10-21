@@ -103,7 +103,7 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.gold.withOpacity(0.15),
+                  color: AppColors.gold.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -157,10 +157,11 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.statusBatal.withOpacity(0.08),
+                        color: AppColors.statusBatal.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: AppColors.statusBatal.withOpacity(0.4)),
+                            color:
+                                AppColors.statusBatal.withValues(alpha: 0.4)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -379,9 +380,10 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.gold.withOpacity(0.15),
+                  color: AppColors.gold.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.gold.withOpacity(0.5)),
+                  border:
+                      Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

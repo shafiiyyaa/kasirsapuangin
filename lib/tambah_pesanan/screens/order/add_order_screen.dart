@@ -1,14 +1,32 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
+// =============================================================
+// TAMBAH PESANAN
+// BARU di versi ini:
+//  1. Field NAMA KASIR di keranjang (wajib, ketik sekali kepake terus).
+//  2. Setelah simpan sukses ada tombol "Cetak Struk" yang manggil
+//     ReceiptService.cetakStruk(pesanan) — pesanan sudah bawa nama kasir.
+// Daftar menu diambil langsung dari Supabase (sama kaya Kelola Menu).
+// =============================================================
 
-import '../../../menu_board/models/menu_item.dart';
-import '../../../menu_board/models/order_item.dart';
-import '../../../menu_board/providers/menu_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+// ⚠️ PENTING: samain 5 import di bawah sama struktur folder kamu.
+//    Cara cek: liat file dashboard_screen.dart kamu pake berapa ../ buat theme.
+import '../../../menu_board/models/order.dart';
 import '../../../menu_board/providers/order_provider.dart';
-import '../../../theme/app_theme.dart';
-import '../../services/receipt_service.dart';
-import '../../widgets/menu_item_card.dart';
+import '../../services/receipt_service.dart'; // ← sesuaikan lokasi receipt_service.dart kamu
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+
+String rupiah(num nominal) {
+  final digits = nominal.toInt().toString();
+  final grouped = digits.replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
+  return 'Rp $grouped';
+}
 
 class AddOrderScreen extends StatefulWidget {
   const AddOrderScreen({super.key});
@@ -18,213 +36,236 @@ class AddOrderScreen extends StatefulWidget {
 }
 
 class _AddOrderScreenState extends State<AddOrderScreen> {
-  final _searchController = TextEditingController();
-  String _query = '';
-  String? _kategoriTerpilih;
-  bool _tampilanList = false; // false = grid, true = list
+  static const String _semua = 'Semua';
+  String _kategoriDipilih = _semua;
 
-  static const _urutanKategori = [
-    'Camilan',
-    'Snacks',
-    'Food',
-    'Manual Brew',
-    'Milk Based',
-    'Coffee Based',
-    'Non Coffee',
-    'Mocktail',
-  ];
+  List<Map<String, dynamic>> _menu = [];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MenuProvider>().loadMenu();
-    });
-    _searchController.addListener(() {
-      setState(() => _query = _searchController.text.trim().toLowerCase());
-    });
+    _muatMenu();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Future<void> _muatMenu() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await Supabase.instance.client
+          .from('menu_items')
+          .select()
+          .order('kategori', ascending: true)
+          .order('nama', ascending: true);
+      if (!mounted) return;
+      setState(() {
+        _menu = (res as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
   }
 
-  List<MenuItem> _terapkanFilter(List<MenuItem> items) {
-    return items.where((e) {
-      final cocokKategori =
-          _kategoriTerpilih == null || e.kategori == _kategoriTerpilih;
-      final cocokQuery =
-          _query.isEmpty || e.nama.toLowerCase().contains(_query);
-      return cocokKategori && cocokQuery && e.tersedia;
+  // ---- helper baca data menu (nama kolom sama kaya Kelola Menu) ----
+  String _id(Map<String, dynamic> m) => (m['id'] ?? '').toString();
+  String _nama(Map<String, dynamic> m) => (m['nama'] ?? '-').toString();
+  String _kategori(Map<String, dynamic> m) =>
+      (m['kategori'] ?? 'Lainnya').toString();
+  int _harga(Map<String, dynamic> m) => (m['harga'] as num?)?.toInt() ?? 0;
+  bool _tersedia(Map<String, dynamic> m) => (m['tersedia'] ?? true) == true;
+
+  List<String> get _kategoriUnik {
+    final set = <String>{};
+    for (final m in _menu) {
+      set.add(_kategori(m));
+    }
+    final list = set.toList()..sort();
+    return [_semua, ...list];
+  }
+
+  List<Map<String, dynamic>> get _hasil {
+    return _menu.where((m) {
+      if (!_tersedia(m)) return false;
+      if (_kategoriDipilih != _semua && _kategori(m) != _kategoriDipilih) {
+        return false;
+      }
+      return true;
     }).toList();
   }
 
-  void _tambahCepat(MenuItem item) {
-    context.read<OrderProvider>().tambahKeKeranjang(
-          CartItem(
-            menuItemId: item.id,
-            namaMenu: item.nama,
-            hargaSatuan: item.harga,
-          ),
-        );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(milliseconds: 900),
-        content: Text('${item.nama} ditambahkan ke keranjang'),
-      ),
-    );
+  int _jumlahDiKeranjang(List<CartItem> cart, String menuItemId) {
+    for (final c in cart) {
+      if (c.menuItemId == menuItemId) return c.jumlah;
+    }
+    return 0;
   }
 
-  void _bukaKeranjang() {
-    showModalBottomSheet(
+  Future<void> _bukaKeranjang() async {
+    final pesanan = await showModalBottomSheet<Order>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _CartSheet(),
     );
-  }
-
-  Widget _buildFilterChips() {
-    return Consumer<MenuProvider>(
-      builder: (context, provider, _) {
-        final kategoris = [...provider.kategoriList]..sort((a, b) {
-            final ia = _urutanKategori.indexOf(a);
-            final ib = _urutanKategori.indexOf(b);
-            return (ia < 0 ? 999 : ia).compareTo(ib < 0 ? 999 : ib);
-          });
-
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              _FilterChip(
-                label: 'Semua',
-                selected: _kategoriTerpilih == null,
-                onTap: () => setState(() => _kategoriTerpilih = null),
-              ),
-              for (final k in kategoris) ...[
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: k,
-                  selected: _kategoriTerpilih == k,
-                  onTap: () => setState(() => _kategoriTerpilih = k),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
+    if (pesanan == null || !mounted) return;
+    context.read<OrderProvider>().loadRingkasanHariIni(); // refresh statistik
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Pesanan tersimpan • ${rupiah(pesanan.totalHarga)}'),
+        action: SnackBarAction(
+          label: 'Cetak Struk',
+          onPressed: () => ReceiptService.cetakStruk(pesanan),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final kategoriList = _kategoriUnik;
+    final hasil = _hasil;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tambah Pesanan'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
-        ),
-        actions: [
-          IconButton(
-            tooltip: _tampilanList ? 'Tampilan grid' : 'Tampilan list',
-            icon: Icon(
-              _tampilanList
-                  ? Icons.grid_view_outlined
-                  : Icons.view_list_outlined,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Tambah Pesanan')),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.forestGreen))
+          : _error != null
+              ? _TampilanKosong(
+                  icon: Icons.cloud_off_rounded,
+                  judul: 'Gagal memuat menu',
+                  pesan: _error!,
+                  aksiLabel: 'Coba Lagi',
+                  onAksi: _muatMenu,
+                )
+              : Column(
+                  children: [
+                    _barisKategori(kategoriList),
+                    Expanded(
+                      child: hasil.isEmpty
+                          ? const _TampilanKosong(
+                              icon: Icons.storefront_rounded,
+                              judul: 'Belum ada menu',
+                              pesan:
+                                  'Tambahkan menu dulu di Pengaturan > Kelola Menu.',
+                            )
+                          : Consumer<OrderProvider>(
+                              builder: (context, orderProv, _) {
+                                return GridView.builder(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: 0.95,
+                                  ),
+                                  itemCount: hasil.length,
+                                  itemBuilder: (context, i) {
+                                    final menu = hasil[i];
+                                    final id = _id(menu);
+                                    return _KartuMenu(
+                                      menu: menu,
+                                      jumlahDiKeranjang: _jumlahDiKeranjang(
+                                          orderProv.cart, id),
+                                      rupiah: rupiah(_harga(menu)),
+                                      onTap: () {
+                                        orderProv.tambahKeKeranjang(
+                                          menuItemId: id,
+                                          namaMenu: _nama(menu),
+                                          hargaSatuan: _harga(menu),
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+      bottomNavigationBar: Consumer<OrderProvider>(
+        builder: (context, prov, _) {
+          final jumlah = prov.jumlahItemKeranjang;
+          return Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.border)),
             ),
-            onPressed: () => setState(() => _tampilanList = !_tampilanList),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Cari menu...',
-                prefixIcon: Icon(Icons.search, size: 20),
-              ),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 12 + MediaQuery.of(context).padding.bottom,
             ),
-          ),
-          _buildFilterChips(),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Consumer<MenuProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.items.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (provider.error != null && provider.items.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            provider.error!,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                          const SizedBox(height: 12),
-                          OutlinedButton(
-                            onPressed: () => provider.loadMenu(),
-                            child: const Text('Coba Lagi'),
-                          ),
-                        ],
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Total keranjang',
+                          style: AppTextStyles.bodySmall),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(rupiah(prov.totalKeranjang),
+                            style: AppTextStyles.priceLarge),
                       ),
-                    ),
-                  );
-                }
-
-                final filtered = _terapkanFilter(provider.items);
-
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'Menu tidak ditemukan / semua lagi habis.',
-                      style: AppTextStyles.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }
-
-                final grouped = <String, List<MenuItem>>{};
-                for (final item in filtered) {
-                  grouped.putIfAbsent(item.kategori, () => []).add(item);
-                }
-
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                  children: grouped.entries.map((entry) {
-                    return _KategoriSection(
-                      judul: entry.key,
-                      items: entry.value,
-                      onTap: _tambahCepat,
-                      tampilanList: _tampilanList,
-                    );
-                  }).toList(),
-                );
-              },
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: jumlah == 0 ? null : _bukaKeranjang,
+                  icon: const Icon(Icons.shopping_cart_rounded, size: 18),
+                  label: Text('Keranjang ($jumlah)'),
+                ),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
-      bottomSheet: Consumer<OrderProvider>(
-        builder: (context, orderProvider, _) {
-          if (orderProvider.cart.isEmpty) return const SizedBox.shrink();
-          return _CartBar(
-            jumlahItem: orderProvider.jumlahItemCart,
-            total: orderProvider.totalCart,
-            onTap: _bukaKeranjang,
+    );
+  }
+
+  Widget _barisKategori(List<String> kategoriList) {
+    return SizedBox(
+      height: 46,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        itemCount: kategoriList.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final k = kategoriList[i];
+          final terpilih = k == _kategoriDipilih;
+          return ChoiceChip(
+            label: Text(k),
+            selected: terpilih,
+            onSelected: (_) => setState(() => _kategoriDipilih = k),
+            selectedColor: AppColors.forestGreen,
+            labelStyle: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: terpilih ? AppColors.putih : AppColors.textSecondary,
+            ),
+            showCheckmark: false,
+            side: BorderSide(
+                color: terpilih ? AppColors.forestGreen : AppColors.border),
+            backgroundColor: AppColors.surface,
           );
         },
       ),
@@ -232,159 +273,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.forestGreen : AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? AppColors.forestGreen : AppColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: selected ? AppColors.textOnGreen : AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _KategoriSection extends StatelessWidget {
-  final String judul;
-  final List<MenuItem> items;
-  final ValueChanged<MenuItem> onTap;
-  final bool tampilanList;
-
-  const _KategoriSection({
-    required this.judul,
-    required this.items,
-    required this.onTap,
-    required this.tampilanList,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 8),
-          child: Text(judul, style: AppTextStyles.displayMedium),
-        ),
-        if (tampilanList)
-          Column(
-            children: [
-              for (final item in items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: MenuItemListTile(
-                    item: item,
-                    onTap: () => onTap(item),
-                    trailing: const Icon(
-                      Icons.add_circle,
-                      color: AppColors.forestGreen,
-                    ),
-                  ),
-                ),
-            ],
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final kolom = kolomMenuUntukLebar(constraints.maxWidth);
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: kolom,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  mainAxisExtent: tinggiKartuMenu(kolom),
-                ),
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return MenuItemCard(
-                    item: item,
-                    onTap: () => onTap(item),
-                    trailing: const Icon(
-                      Icons.add_circle,
-                      color: AppColors.forestGreen,
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-      ],
-    );
-  }
-}
-
-class _CartBar extends StatelessWidget {
-  final int jumlahItem;
-  final int total;
-  final VoidCallback onTap;
-
-  const _CartBar({
-    required this.jumlahItem,
-    required this.total,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.forestGreen,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '$jumlahItem item • ${_formatRupiah(total)}',
-                style: AppTextStyles.button,
-              ),
-              Row(
-                children: [
-                  Text('Lihat Keranjang', style: AppTextStyles.button),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Bottom sheet keranjang: atur jumlah/catatan, pilih metode pembayaran,
-/// isi nama pelanggan & meja, lalu simpan ke Supabase.
+// =============================================================
+// KERANJANG (bottom sheet yang bisa ditarik)
+// =============================================================
 class _CartSheet extends StatefulWidget {
   const _CartSheet();
 
@@ -393,61 +284,106 @@ class _CartSheet extends StatefulWidget {
 }
 
 class _CartSheetState extends State<_CartSheet> {
-  final _namaController = TextEditingController();
-  final _mejaController = TextEditingController();
+  static const Map<String, String> _labelMetode = {
+    'cash': 'Cash',
+    'qris': 'QRIS',
+    'transfer': 'Transfer',
+  };
+
+  late final TextEditingController _kasirC;
+  late final TextEditingController _namaC;
+  late final TextEditingController _mejaC;
+
+  @override
+  void initState() {
+    super.initState();
+    final prov = context.read<OrderProvider>();
+    _kasirC = TextEditingController(text: prov.kasir);
+    _namaC = TextEditingController(text: prov.namaPelanggan);
+    _mejaC = TextEditingController(text: prov.meja);
+  }
 
   @override
   void dispose() {
-    _namaController.dispose();
-    _mejaController.dispose();
+    _kasirC.dispose();
+    _namaC.dispose();
+    _mejaC.dispose();
     super.dispose();
   }
 
   Future<void> _simpan() async {
-    final provider = context.read<OrderProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
-
-    final nama = _namaController.text.trim();
-    final meja = _mejaController.text.trim();
-    provider.setNamaPelanggan(nama.isEmpty ? null : nama);
-    provider.setMeja(meja.isEmpty ? null : meja);
-
-    try {
-      final order = await provider.simpanPesanan();
-      if (order == null) return;
-
-      // Refresh data biar dashboard langsung keupdate pas balik.
-      await provider.loadOrders();
-      await provider.loadRingkasanHariIni();
-      if (!mounted) return;
-
-      Navigator.of(context).pop(); // tutup sheet keranjang
-      router.pop(); // balik dari layar Tambah Pesanan
-
-      messenger.showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 6),
-          content: const Text('Pesanan berhasil disimpan'),
-          action: SnackBarAction(
-            label: 'Cetak Struk',
-            onPressed: () => ReceiptService.cetakStruk(order),
-          ),
+    if (_kasirC.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Isi dulu nama kasirnya ya'),
+          backgroundColor: AppColors.statusBatal,
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
+      return;
+    }
+    final prov = context.read<OrderProvider>();
+    prov.setKasir(_kasirC.text);
+    prov.setNamaPelanggan(_namaC.text);
+    prov.setMeja(_mejaC.text);
+
+    final pesanan = await prov.simpanPesanan();
+    if (!mounted) return;
+    if (pesanan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan pesanan: $e')),
+        SnackBar(
+          content: Text(prov.pesanError ?? 'Gagal menyimpan pesanan'),
+          backgroundColor: AppColors.statusBatal,
+        ),
       );
+      return;
+    }
+    Navigator.of(context).pop(pesanan); // balikin hasil ke layar utama
+  }
+
+  Future<void> _editCatatan(CartItem item) async {
+    final c = TextEditingController(text: item.catatan ?? '');
+    final hasil = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Catatan — ${item.namaMenu}',
+            style: AppTextStyles.titleMedium),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            hintText: 'misal: less sugar, take away',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style:
+                FilledButton.styleFrom(backgroundColor: AppColors.forestGreen),
+            onPressed: () => Navigator.pop(context, c.text),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (hasil != null) {
+      context.read<OrderProvider>().ubahCatatan(item.menuItemId, hasil);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      minChildSize: 0.4,
+      initialChildSize: 0.9,
+      minChildSize: 0.45,
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
@@ -457,154 +393,151 @@ class _CartSheetState extends State<_CartSheet> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Consumer<OrderProvider>(
-            builder: (context, orderProvider, _) {
-              return Column(
+            builder: (context, prov, _) {
+              return ListView(
+                controller: scrollController,
+                padding: EdgeInsets.fromLTRB(
+                    16, 10, 16, MediaQuery.of(context).viewInsets.bottom + 24),
                 children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text('Keranjang', style: AppTextStyles.displayMedium),
-                  ),
-                  Expanded(
-                    child: orderProvider.cart.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Keranjang kosong',
-                              style: AppTextStyles.bodyMedium,
-                            ),
-                          )
-                        : ListView.builder(
-                            controller: scrollController,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: orderProvider.cart.length,
-                            itemBuilder: (context, index) {
-                              final item = orderProvider.cart[index];
-                              return _CartItemTile(
-                                item: item,
-                                onTambah: () =>
-                                    orderProvider.ubahJumlah(index, item.jumlah + 1),
-                                onKurang: () =>
-                                    orderProvider.ubahJumlah(index, item.jumlah - 1),
-                                onHapus: () =>
-                                    orderProvider.hapusDariKeranjang(index),
-                                onCatatanBerubah: (catatan) =>
-                                    item.catatan = catatan,
-                              );
-                            },
-                          ),
-                  ),
-                  if (orderProvider.cart.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // ----- Metode pembayaran (gaya pilihan Shopee) -----
-                          Text('Metode Pembayaran',
-                              style: AppTextStyles.bodyMedium),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _MetodeCard(
-                                  icon: Icons.payments_outlined,
-                                  label: 'Cash',
-                                  selected:
-                                      orderProvider.metodePembayaran == 'cash',
-                                  onTap: () => orderProvider
-                                      .setMetodePembayaran('cash'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _MetodeCard(
-                                  icon: Icons.qr_code_2,
-                                  label: 'QRIS',
-                                  selected:
-                                      orderProvider.metodePembayaran == 'qris',
-                                  onTap: () => orderProvider
-                                      .setMetodePembayaran('qris'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _MetodeCard(
-                                  icon: Icons.account_balance,
-                                  label: 'Transfer',
-                                  selected: orderProvider.metodePembayaran ==
-                                      'transfer',
-                                  onTap: () => orderProvider
-                                      .setMetodePembayaran('transfer'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: TextField(
-                                  controller: _namaController,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Nama pelanggan (opsional)',
-                                    isDense: true,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  controller: _mejaController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Meja',
-                                    isDense: true,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Total', style: AppTextStyles.bodyLarge),
-                              Text(
-                                _formatRupiah(orderProvider.totalCart),
-                                style: AppTextStyles.priceLarge,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed:
-                                orderProvider.isSubmitting ? null : _simpan,
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(50),
-                            ),
-                            child: orderProvider.isSubmitting
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Simpan Pesanan'),
-                          ),
-                        ],
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Expanded(
+                          child: Text('Keranjang',
+                              style: AppTextStyles.displaySmall)),
+                      if (!prov.keranjangKosong)
+                        TextButton(
+                          onPressed: prov.kosongkanKeranjang,
+                          child: const Text('Kosongkan',
+                              style: TextStyle(color: AppColors.statusBatal)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // ===== NAMA KASIR (BARU) =====
+                  _Field(
+                    controller: _kasirC,
+                    label: 'Nama Kasir',
+                    hint: 'misal: Rani',
+                    icon: Icons.badge_rounded,
+                  ),
+                  const SizedBox(height: 10),
+                  _Field(
+                    controller: _namaC,
+                    label: 'Nama Pelanggan (opsional)',
+                    hint: 'misal: Bu Ita',
+                    icon: Icons.person_rounded,
+                  ),
+                  const SizedBox(height: 10),
+                  _Field(
+                    controller: _mejaC,
+                    label: 'Nomor Meja (opsional)',
+                    hint: 'misal: 3',
+                    icon: Icons.table_restaurant_rounded,
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Metode Pembayaran',
+                        style: AppTextStyles.titleSmall),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _labelMetode.entries.map((e) {
+                      final terpilih = prov.metodePembayaran == e.key;
+                      return ChoiceChip(
+                        label: Text(e.value),
+                        selected: terpilih,
+                        onSelected: (_) => prov.setMetodePembayaran(e.key),
+                        selectedColor: AppColors.forestGreen,
+                        labelStyle: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: terpilih
+                              ? AppColors.putih
+                              : AppColors.textSecondary,
+                        ),
+                        showCheckmark: false,
+                        side: BorderSide(
+                            color: terpilih
+                                ? AppColors.forestGreen
+                                : AppColors.border),
+                        backgroundColor: AppColors.surface,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+
+                  if (prov.keranjangKosong)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text('Keranjang masih kosong',
+                            style: AppTextStyles.bodySmall),
+                      ),
+                    )
+                  else ...[
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child:
+                          Text('Item Dipesan', style: AppTextStyles.titleSmall),
+                    ),
+                    const SizedBox(height: 4),
+                    ...prov.cart.map(
+                      (item) => _TileItem(
+                        item: item,
+                        onCatatan: () => _editCatatan(item),
+                        onKurang: () => prov.ubahJumlah(item.menuItemId, -1),
+                        onTambah: () => prov.ubahJumlah(item.menuItemId, 1),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                            child: Text('Total',
+                                style: AppTextStyles.titleMedium)),
+                        Text(rupiah(prov.totalKeranjang),
+                            style: AppTextStyles.priceLarge),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton(
+                    onPressed: prov.isSubmitting || prov.keranjangKosong
+                        ? null
+                        : _simpan,
+                    child: prov.isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.putih),
+                          )
+                        : const Text('Simpan Pesanan'),
+                  ),
                 ],
               );
             },
@@ -615,143 +548,303 @@ class _CartSheetState extends State<_CartSheet> {
   }
 }
 
-class _MetodeCard extends StatelessWidget {
-  final IconData icon;
+// =============================================================
+// WIDGET KECIL
+// =============================================================
+class _Field extends StatelessWidget {
+  final TextEditingController controller;
   final String label;
-  final bool selected;
+  final String hint;
+  final IconData icon;
+
+  const _Field({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.titleSmall),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon, size: 20, color: AppColors.textSecondary),
+            filled: true,
+            fillColor: AppColors.surface,
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppColors.forestGreen, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TileItem extends StatelessWidget {
+  final CartItem item;
+  final VoidCallback onCatatan;
+  final VoidCallback onKurang;
+  final VoidCallback onTambah;
+
+  const _TileItem({
+    required this.item,
+    required this.onCatatan,
+    required this.onKurang,
+    required this.onTambah,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.namaMenu,
+                    style: AppTextStyles.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text('${rupiah(item.hargaSatuan)} x ${item.jumlah}',
+                    style: AppTextStyles.bodySmall),
+                if (item.catatan != null)
+                  Text('Catatan: ${item.catatan}',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(fontStyle: FontStyle.italic)),
+                GestureDetector(
+                  onTap: onCatatan,
+                  child: Text(
+                    item.catatan == null ? '+ Tambah catatan' : 'Ubah catatan',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.forestGreen,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(rupiah(item.subtotal), style: AppTextStyles.price),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  _TombolStepper(icon: Icons.remove_rounded, onTap: onKurang),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child:
+                        Text('${item.jumlah}', style: AppTextStyles.titleSmall),
+                  ),
+                  _TombolStepper(icon: Icons.add_rounded, onTap: onTambah),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TombolStepper extends StatelessWidget {
+  final IconData icon;
   final VoidCallback onTap;
 
-  const _MetodeCard({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _TombolStepper({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
-          color: selected ? AppColors.forestGreen : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? AppColors.forestGreen : AppColors.border,
-          ),
+          color: AppColors.goldMuda,
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color:
-                  selected ? AppColors.textOnGreen : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTextStyles.bodySmall.copyWith(
-                color:
-                    selected ? AppColors.textOnGreen : AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+        child: Icon(icon, size: 16, color: AppColors.forestGreenDark),
       ),
     );
   }
 }
 
-class _CartItemTile extends StatelessWidget {
-  final CartItem item;
-  final VoidCallback onTambah;
-  final VoidCallback onKurang;
-  final VoidCallback onHapus;
-  final ValueChanged<String> onCatatanBerubah;
+class _KartuMenu extends StatelessWidget {
+  final Map<String, dynamic> menu;
+  final int jumlahDiKeranjang;
+  final String rupiah;
+  final VoidCallback onTap;
 
-  const _CartItemTile({
-    required this.item,
-    required this.onTambah,
-    required this.onKurang,
-    required this.onHapus,
-    required this.onCatatanBerubah,
+  const _KartuMenu({
+    required this.menu,
+    required this.jumlahDiKeranjang,
+    required this.rupiah,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(item.namaMenu, style: AppTextStyles.bodyLarge),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 20,
-                    color: AppColors.statusBatal,
+    final nama = (menu['nama'] ?? '-').toString();
+    final kategori = (menu['kategori'] ?? 'Lainnya').toString();
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: jumlahDiKeranjang > 0
+                  ? AppColors.forestGreen
+                  : AppColors.border,
+              width: jumlahDiKeranjang > 0 ? 1.5 : 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(nama,
+                        style: AppTextStyles.titleMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
                   ),
-                  onPressed: onHapus,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_formatRupiah(item.subtotal), style: AppTextStyles.price),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: onKurang,
-                      visualDensity: VisualDensity.compact,
+                  if (jumlahDiKeranjang > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.forestGreen,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$jumlahDiKeranjang',
+                        style: const TextStyle(
+                          color: AppColors.putih,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                    Text('${item.jumlah}', style: AppTextStyles.bodyLarge),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      onPressed: onTambah,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Catatan (mis. pedas, tanpa es)',
-                isDense: true,
+                ],
               ),
-              style: AppTextStyles.bodySmall,
-              onChanged: onCatatanBerubah,
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(kategori,
+                  style: AppTextStyles.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(rupiah, style: AppTextStyles.price),
+                    ),
+                  ),
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: AppColors.gold,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.add_rounded,
+                        color: AppColors.putih, size: 18),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-String _formatRupiah(int angka) {
-  final str = angka.toString();
-  final buffer = StringBuffer();
-  for (int i = 0; i < str.length; i++) {
-    final posFromRight = str.length - i;
-    buffer.write(str[i]);
-    if (posFromRight > 1 && posFromRight % 3 == 1) {
-      buffer.write('.');
-    }
+class _TampilanKosong extends StatelessWidget {
+  final IconData icon;
+  final String judul;
+  final String pesan;
+  final String? aksiLabel;
+  final VoidCallback? onAksi;
+
+  const _TampilanKosong({
+    required this.icon,
+    required this.judul,
+    required this.pesan,
+    this.aksiLabel,
+    this.onAksi,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.goldMuda,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(icon, color: AppColors.forestGreen, size: 30),
+            ),
+            const SizedBox(height: 14),
+            Text(judul,
+                textAlign: TextAlign.center, style: AppTextStyles.titleMedium),
+            const SizedBox(height: 6),
+            Text(pesan,
+                textAlign: TextAlign.center, style: AppTextStyles.bodySmall),
+            if (aksiLabel != null && onAksi != null) ...[
+              const SizedBox(height: 12),
+              TextButton(onPressed: onAksi, child: Text(aksiLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
   }
-  return 'Rp$buffer';
 }

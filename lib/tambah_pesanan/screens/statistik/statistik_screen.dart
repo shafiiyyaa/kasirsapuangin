@@ -240,9 +240,9 @@ class _KartuRekap extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: warna.withOpacity(0.08),
+        color: warna.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: warna.withOpacity(0.4)),
+        border: Border.all(color: warna.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

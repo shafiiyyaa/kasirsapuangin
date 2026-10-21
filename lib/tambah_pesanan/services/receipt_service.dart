@@ -59,6 +59,11 @@ class ReceiptService {
                 'Meja    : ${order.meja ?? '-'}',
                 style: pw.TextStyle(fontSize: 9),
               ),
+              // ===== BARU: NAMA KASIR DI STRUK =====
+              pw.Text(
+                'Kasir   : -',
+                style: pw.TextStyle(fontSize: 9),
+              ),
               pw.Text(
                 'Bayar  : ${metodeLabel(order.metodePembayaran)}',
                 style: pw.TextStyle(fontSize: 9),
