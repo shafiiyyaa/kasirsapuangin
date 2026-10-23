@@ -31,7 +31,7 @@ class AppDrawer extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Kasir Sapuangin', style: AppTextStyles.displayMedium),
+                  const Text('Kasir Sapuangin', style: AppTextStyles.displayMedium),
                   const SizedBox(height: 2),
                   Text(
                     'Sapuangin Coffee & Farm',

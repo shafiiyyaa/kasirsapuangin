@@ -9,6 +9,7 @@ import '../../../menu_board/providers/order_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/order_detail_sheet.dart';
+import '../../services/receipt_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,14 +20,25 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _kasirController = TextEditingController();
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _mejaController = TextEditingController();
   String _query = '';
   String? _selectedCategory;
+  String _metodePembayaran = 'cash';
+  bool _gridView = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadData();
+      if (!mounted) return;
+      final order = context.read<OrderProvider>();
+      _kasirController.text = order.kasir;
+      _namaController.text = order.namaPelanggan;
+      _mejaController.text = order.meja;
+      _metodePembayaran = order.metodePembayaran;
+      _loadData();
     });
     _searchController.addListener(() {
       final next = _searchController.text.trim().toLowerCase();
@@ -37,6 +49,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _kasirController.dispose();
+    _namaController.dispose();
+    _mejaController.dispose();
     super.dispose();
   }
 
@@ -69,11 +84,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            item.tersedia
-                ? '${item.nama} ditandai habis.'
-                : '${item.nama} tersedia kembali.',
-          ),
+          content: Text(item.tersedia
+              ? '${item.nama} ditandai habis.'
+              : '${item.nama} tersedia kembali.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -86,6 +99,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
+  }
+
+  void _addToCart(MenuItem item) {
+    if (!item.tersedia) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${item.nama} sedang habis.')),
+      );
+      return;
+    }
+    context.read<OrderProvider>().tambahKeKeranjang(
+          menuItemId: item.id,
+          namaMenu: item.nama,
+          hargaSatuan: item.harga,
+          catatan: item.catatan,
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${item.nama} ditambahkan ke pesanan'),
+        duration: const Duration(milliseconds: 900),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<bool> _confirmDelete(Order order) async {
@@ -128,6 +163,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _checkout({bool closeSheet = false}) async {
+    final provider = context.read<OrderProvider>();
+    if (provider.keranjangKosong) return;
+    if (_kasirController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Isi dulu nama kasirnya ya.')),
+      );
+      return;
+    }
+
+    provider.setKasir(_kasirController.text);
+    provider.setNamaPelanggan(_namaController.text);
+    provider.setMeja(_mejaController.text);
+    provider.setMetodePembayaran(_metodePembayaran);
+
+    final pesanan = await provider.simpanPesanan();
+    if (!mounted) return;
+    if (pesanan == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.pesanError ?? 'Gagal menyimpan pesanan')),
+      );
+      return;
+    }
+
+    await Future.wait<void>([
+      provider.loadOrders(),
+      provider.loadRingkasanHariIni(),
+    ]);
+    if (!mounted) return;
+
+    // Pertahankan nama kasir dan metode bayar untuk transaksi berikutnya.
+    _namaController.clear();
+    _mejaController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Pesanan tersimpan • ${_formatRupiah(pesanan.totalHarga)}'),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Cetak struk',
+          onPressed: () => ReceiptService.cetakStruk(pesanan),
+        ),
+      ),
+    );
+    if (closeSheet) Navigator.of(context).pop();
+  }
+
+  void _openCartSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.82,
+        minChildSize: 0.45,
+        maxChildSize: 0.96,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildCartPanel(inSheet: true),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final wideScreen = AppScaffold.isWide(context);
@@ -135,8 +255,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AppScaffold(
       currentIndex: 0,
       child: Scaffold(
-        // Desktop langsung masuk ke pencarian/kategori, tanpa judul Dashboard.
-        // Di layar sempit tetap ada tombol drawer.
         appBar: wideScreen
             ? null
             : AppBar(
@@ -155,13 +273,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 6),
                 ],
               ),
+        floatingActionButton: wideScreen
+            ? null
+            : Consumer<OrderProvider>(
+                builder: (context, provider, _) => FloatingActionButton.extended(
+                  onPressed: _openCartSheet,
+                  icon: const Icon(Icons.shopping_bag_outlined),
+                  label: Text(
+                    provider.jumlahItemKeranjang == 0
+                        ? 'Tambah pesanan'
+                        : 'Pesanan (${provider.jumlahItemKeranjang}) • ${_formatRupiah(provider.totalKeranjang)}',
+                  ),
+                ),
+              ),
         body: RefreshIndicator(
           onRefresh: _loadData,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
               final horizontalPadding = width < 420 ? 12.0 : 20.0;
-              final desktopContent = width >= 900;
+              final desktopContent = width >= 820;
 
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -172,14 +303,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   100,
                 ),
                 children: [
-                  // Search + kategori menjadi fokus pertama dashboard.
                   if (desktopContent)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(flex: 7, child: _buildMenuSection()),
-                        const SizedBox(width: 20),
-                        Expanded(flex: 4, child: _buildOrdersSection()),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildCartPanel(),
+                              const SizedBox(height: 18),
+                              _buildOrdersSection(),
+                            ],
+                          ),
+                        ),
                       ],
                     )
                   else ...[
@@ -202,7 +342,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context, provider, _) {
         final categories = provider.kategoriList;
         final filtered = _filterMenu(provider.items);
-        final columns = _menuColumns(MediaQuery.sizeOf(context).width);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,7 +364,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             if (categories.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
+              Text(
+                'Kategori',
+                style: AppTextStyles.displaySmall.copyWith(color: scheme.onSurface),
+              ),
+              const SizedBox(height: 9),
               SizedBox(
                 height: 76,
                 child: ListView(
@@ -252,16 +396,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
             const SizedBox(height: 18),
-            _SectionHeading(
-              title: 'Menu hari ini',
-              subtitle: 'Pilih kategori dan atur ketersediaan menu',
-              trailing: TextButton.icon(
-                onPressed: () => context.go('/menu'),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                label: const Text('Kelola menu'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _SectionHeading(
+                    title: 'Menu hari ini',
+                    subtitle: 'Pilih menu dan atur ketersediaannya',
+                    trailing: TextButton.icon(
+                      onPressed: () => context.go('/menu'),
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                      label: const Text('Kelola menu'),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text('Tampilan', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                const SizedBox(width: 8),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: true,
+                      icon: Icon(Icons.grid_view_rounded, size: 17),
+                      label: Text('Grid'),
+                    ),
+                    ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.view_list_rounded, size: 17),
+                      label: Text('List'),
+                    ),
+                  ],
+                  selected: {_gridView},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) => setState(() => _gridView = selection.first),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             if (provider.isLoading && provider.items.isEmpty)
               const _LoadingPanel(label: 'Memuat menu...')
             else if (provider.error != null && provider.items.isEmpty)
@@ -278,63 +453,258 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 message: 'Menu tidak ditemukan.',
                 detail: 'Coba kata kunci atau kategori lain.',
               )
-            else
+            else if (_gridView)
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final actualColumns = constraints.maxWidth < 340
+                  final columns = constraints.maxWidth < 350
                       ? 1
-                      : (constraints.maxWidth < 720 ? 2 : 3);
+                      : constraints.maxWidth < 520
+                          ? 2
+                          : 3;
                   return GridView.builder(
-                    itemCount: filtered.length > 8 ? 8 : filtered.length,
+                    itemCount: filtered.length,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: actualColumns,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      mainAxisExtent: 150,
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 9,
+                      mainAxisSpacing: 9,
+                      mainAxisExtent: 164,
                     ),
-                    itemBuilder: (context, index) => _MenuPreviewCard(
-                      item: filtered[index],
-                      onToggle: () => _toggleAvailability(filtered[index]),
-                    ),
+                    itemBuilder: (context, index) {
+                      final item = filtered[index];
+                      return _MenuPreviewCard(
+                        item: item,
+                        onToggle: () => _toggleAvailability(item),
+                        onAdd: () => _addToCart(item),
+                      );
+                    },
                   );
                 },
+              )
+            else
+              Column(
+                children: [
+                  for (final item in filtered)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _MenuListRow(
+                        item: item,
+                        onToggle: () => _toggleAvailability(item),
+                        onAdd: () => _addToCart(item),
+                      ),
+                    ),
+                ],
               ),
-            if (filtered.length > 8) ...[
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => context.go('/menu'),
-                  icon: const Icon(Icons.grid_view_rounded, size: 17),
-                  label: Text('Lihat semua ${filtered.length} menu'),
-                ),
-              ),
-            ],
           ],
         );
       },
     );
   }
 
-  int _menuColumns(double screenWidth) {
-    if (screenWidth >= 1400) return 3;
-    if (screenWidth >= 1000) return 3;
-    return 2;
+  Widget _buildCartPanel({bool inSheet = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Consumer<OrderProvider>(
+      builder: (context, provider, _) {
+        final cart = provider.cart;
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _SectionHeading(
+                      title: 'Tambah Pesanan',
+                      subtitle: 'Pilih menu lalu cek pesanan',
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${provider.jumlahItemKeranjang} item',
+                      style: AppTextStyles.label.copyWith(color: scheme.onPrimaryContainer),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _CartTextField(
+                controller: _kasirController,
+                label: 'Nama kasir *',
+                hint: 'Nama kasir',
+                icon: Icons.badge_outlined,
+              ),
+              const SizedBox(height: 8),
+              _CartTextField(
+                controller: _namaController,
+                label: 'Nama pelanggan (opsional)',
+                hint: 'Nama pelanggan',
+                icon: Icons.person_outline_rounded,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _CartTextField(
+                      controller: _mejaController,
+                      label: 'Meja',
+                      hint: 'No. meja',
+                      icon: Icons.table_restaurant_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _metodePembayaran,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Pembayaran',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                        DropdownMenuItem(value: 'qris', child: Text('QRIS')),
+                        DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => _metodePembayaran = value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Daftar pesanan', style: AppTextStyles.titleMedium),
+                  ),
+                  if (cart.isNotEmpty)
+                    TextButton(
+                      onPressed: provider.kosongkanKeranjang,
+                      child: const Text('Kosongkan'),
+                    ),
+                ],
+              ),
+              if (cart.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.shopping_basket_outlined, size: 28, color: scheme.onSurfaceVariant),
+                      const SizedBox(height: 5),
+                      Text('Belum ada menu dipilih', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                      Text('Tekan tombol + pada menu untuk menambahkan.', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant), textAlign: TextAlign.center),
+                    ],
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: inSheet ? 260 : 235),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: cart.length,
+                    separatorBuilder: (_, __) => Divider(height: 1, color: scheme.outlineVariant),
+                    itemBuilder: (context, index) {
+                      final item = cart[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 7),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.namaMenu, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleSmall),
+                                  const SizedBox(height: 2),
+                                  Text('${_formatRupiah(item.hargaSatuan)} × ${item.jumlah}', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                                  if (item.catatan?.isNotEmpty == true)
+                                    Text('Catatan: ${item.catatan}', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Kurangi jumlah',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => provider.ubahJumlah(item.menuItemId, -1),
+                              icon: const Icon(Icons.remove_circle_outline_rounded),
+                            ),
+                            Text('${item.jumlah}', style: AppTextStyles.titleSmall),
+                            IconButton(
+                              tooltip: 'Tambah jumlah',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => provider.ubahJumlah(item.menuItemId, 1),
+                              icon: const Icon(Icons.add_circle_rounded),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: Text('Total', style: AppTextStyles.titleMedium)),
+                  Text(_formatRupiah(provider.totalKeranjang), style: AppTextStyles.priceLarge),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: provider.isSubmitting || provider.keranjangKosong
+                      ? null
+                      : () => _checkout(closeSheet: inSheet),
+                  icon: provider.isSubmitting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.point_of_sale_rounded),
+                  label: Text(provider.isSubmitting ? 'Menyimpan...' : 'Checkout & Simpan Pesanan'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildOrdersSection() {
     final scheme = Theme.of(context).colorScheme;
     return Consumer<OrderProvider>(
       builder: (context, provider, _) {
-        final orders = provider.orders.take(6).toList();
+        final now = DateTime.now();
+        final orders = provider.orders.where((order) {
+          final created = order.createdAt.toLocal();
+          return created.year == now.year &&
+              created.month == now.month &&
+              created.day == now.day;
+        }).take(6).toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionHeading(
-              title: 'Pesanan terbaru',
-              subtitle: 'Pantau pesanan yang baru masuk',
+              title: 'Pesanan Hari Ini',
+              subtitle: '${provider.ringkasanJumlahPesanan} pesanan • ${_formatRupiah(provider.ringkasanTotalPendapatan)}',
               trailing: TextButton(
                 onPressed: () => context.go('/riwayat'),
                 child: const Text('Lihat semua'),
@@ -383,9 +753,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: Text(
                       'Tips: tekan lama pesanan untuk menghapusnya.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                      style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -397,6 +765,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
+
 
 class _SectionHeading extends StatelessWidget {
   final String title;
@@ -537,130 +906,231 @@ class _CategoryChipState extends State<_CategoryChip> {
   }
 }
 
-class _MenuPreviewCard extends StatefulWidget {
+class _MenuPreviewCard extends StatelessWidget {
   final MenuItem item;
   final VoidCallback onToggle;
-  const _MenuPreviewCard({required this.item, required this.onToggle});
+  final VoidCallback onAdd;
 
-  @override
-  State<_MenuPreviewCard> createState() => _MenuPreviewCardState();
-}
-
-class _MenuPreviewCardState extends State<_MenuPreviewCard> {
-  bool _hovered = false;
+  const _MenuPreviewCard({
+    required this.item,
+    required this.onToggle,
+    required this.onAdd,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final item = widget.item;
     final available = item.tersedia;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 170),
-        curve: Curves.easeOut,
-        transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: _hovered ? scheme.primary.withOpacity(0.55) : scheme.outlineVariant,
+    final itemIcon = item.tipe.toLowerCase() == 'minuman'
+        ? Icons.local_cafe_rounded
+        : Icons.restaurant_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: item.gambarUrl != null && item.gambarUrl!.trim().isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              item.gambarUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Icon(itemIcon, size: 34, color: scheme.primary),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Icon(itemIcon, size: 34, color: scheme.primary),
+                          ),
+                  ),
+                  Positioned(
+                    top: 5,
+                    right: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: available ? scheme.tertiaryContainer : scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        available ? 'Tersedia' : 'Habis',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          boxShadow: _hovered
-              ? [BoxShadow(color: scheme.primary.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))]
-              : const [],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          const SizedBox(height: 7),
+          Text(item.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface)),
+          Text(item.kategori, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant, fontSize: 10)),
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              Expanded(
+                child: Text(_formatRupiah(item.harga), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.price.copyWith(fontSize: 12)),
+              ),
+              _SmallActionButton(
+                tooltip: available ? 'Tandai habis' : 'Aktifkan kembali',
+                icon: available ? Icons.check_rounded : Icons.refresh_rounded,
+                color: available ? scheme.primary : scheme.error,
+                onPressed: onToggle,
+              ),
+              const SizedBox(width: 4),
+              _SmallActionButton(
+                tooltip: 'Tambah ke pesanan',
+                icon: Icons.add_rounded,
+                color: scheme.secondary,
+                onPressed: available ? onAdd : null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MenuListRow extends StatelessWidget {
+  final MenuItem item;
+  final VoidCallback onToggle;
+  final VoidCallback onAdd;
+
+  const _MenuListRow({
+    required this.item,
+    required this.onToggle,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final available = item.tersedia;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    item.tipe.toLowerCase() == 'minuman'
-                        ? Icons.local_cafe_rounded
-                        : Icons.restaurant_rounded,
-                    color: scheme.primary,
-                    size: 19,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: available
-                        ? scheme.tertiaryContainer
-                        : scheme.errorContainer,
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: Text(
-                    available ? 'Tersedia' : 'Habis',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
+                Text(item.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleSmall),
+                const SizedBox(height: 2),
+                Text(item.kategori, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 3),
+                Text(_formatRupiah(item.harga), style: AppTextStyles.price),
               ],
             ),
-            const SizedBox(height: 9),
-            Text(
-              item.nama,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              item.kategori,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _formatRupiah(item.harga),
-                      style: AppTextStyles.price.copyWith(color: scheme.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Tooltip(
-                  message: available ? 'Tandai habis' : 'Aktifkan kembali',
-                  child: IconButton(
-                    onPressed: widget.onToggle,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints.tightFor(width: 34, height: 34),
-                    padding: EdgeInsets.zero,
-                    style: IconButton.styleFrom(
-                      backgroundColor: available ? scheme.primary : scheme.error,
-                      foregroundColor: scheme.onPrimary,
-                    ),
-                    icon: Icon(
-                      available ? Icons.check_rounded : Icons.refresh_rounded,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
+          const SizedBox(width: 8),
+          _SmallActionButton(
+            tooltip: available ? 'Tandai habis' : 'Aktifkan kembali',
+            icon: available ? Icons.check_rounded : Icons.refresh_rounded,
+            color: available ? scheme.primary : scheme.error,
+            onPressed: onToggle,
+          ),
+          const SizedBox(width: 5),
+          _SmallActionButton(
+            tooltip: 'Tambah ke pesanan',
+            icon: Icons.add_rounded,
+            color: scheme.secondary,
+            onPressed: available ? onAdd : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallActionButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  const _SmallActionButton({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 30,
+        height: 30,
+        child: IconButton.filled(
+          onPressed: onPressed,
+          tooltip: tooltip,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          style: IconButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            disabledForegroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          icon: Icon(icon, size: 17),
         ),
+      ),
+    );
+  }
+}
+
+class _CartTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+
+  const _CartTextField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 19),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       ),
     );
   }

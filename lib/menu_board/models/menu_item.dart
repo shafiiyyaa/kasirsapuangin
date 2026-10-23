@@ -8,6 +8,8 @@ class MenuItem {
   final int harga; // dalam Rupiah, disimpan sebagai int (mis. 15000)
   final bool tersedia; // status stok: tersedia / habis
   final String? catatan; // opsional, mis. varian "Hot/Ice" dipisah jadi 2 baris
+  /// URL foto menu jika kolom gambar_url/image_url tersedia di Supabase.
+  final String? gambarUrl;
   final DateTime createdAt;
 
   const MenuItem({
@@ -18,6 +20,7 @@ class MenuItem {
     required this.harga,
     this.tersedia = true,
     this.catatan,
+    this.gambarUrl,
     required this.createdAt,
   });
 
@@ -30,6 +33,7 @@ class MenuItem {
       harga: map['harga'] as int,
       tersedia: map['tersedia'] as bool? ?? true,
       catatan: map['catatan'] as String?,
+      gambarUrl: (map['gambar_url'] ?? map['image_url'] ?? map['foto_url']) as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
@@ -65,6 +69,7 @@ class MenuItem {
     int? harga,
     bool? tersedia,
     String? catatan,
+    String? gambarUrl,
   }) {
     return MenuItem(
       id: id,
@@ -74,6 +79,7 @@ class MenuItem {
       harga: harga ?? this.harga,
       tersedia: tersedia ?? this.tersedia,
       catatan: catatan ?? this.catatan,
+      gambarUrl: gambarUrl ?? this.gambarUrl,
       createdAt: createdAt,
     );
   }

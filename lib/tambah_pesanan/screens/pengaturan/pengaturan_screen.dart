@@ -114,7 +114,7 @@ class PengaturanScreen extends StatelessWidget {
                     ),
                   ),
                   value: gelap,
-                  activeColor: AppColors.forestGreen,
+                  activeThumbColor: AppColors.forestGreen,
                   onChanged: (_) => themeProvider.toggleTheme(),
                 );
               },

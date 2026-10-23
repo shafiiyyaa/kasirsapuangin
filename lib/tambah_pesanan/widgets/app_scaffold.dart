@@ -92,18 +92,6 @@ class _AppScaffoldState extends State<AppScaffold> {
                   ],
                 )
               : widget.child,
-          floatingActionButton: widget.currentIndex == 0
-              ? FloatingActionButton(
-                  onPressed: () => context.push('/tambah-pesanan'),
-                  backgroundColor: scheme.secondary,
-                  foregroundColor: scheme.onSecondary,
-                  elevation: 3,
-                  shape: const CircleBorder(),
-                  tooltip: 'Tambah pesanan',
-                  child: const Icon(Icons.add_rounded, size: 28),
-                )
-              : null,
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
       },
     );

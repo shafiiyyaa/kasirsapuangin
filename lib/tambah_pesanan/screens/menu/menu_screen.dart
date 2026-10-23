@@ -180,7 +180,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 final filtered = _terapkanFilter(provider.items);
 
                 if (filtered.isEmpty) {
-                  return Center(
+                  return const Center(
                     child: Text(
                       'Menu tidak ditemukan.',
                       style: AppTextStyles.bodyMedium,

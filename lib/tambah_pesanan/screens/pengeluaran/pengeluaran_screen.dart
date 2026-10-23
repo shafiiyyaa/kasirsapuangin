@@ -174,7 +174,7 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Pengeluaran bulan ini',
+                          const Text('Pengeluaran bulan ini',
                               style: AppTextStyles.bodyLarge),
                           Text(
                             'Rp${_formatRupiah(totalBulanIni)}',
@@ -186,8 +186,8 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
                     ),
                     const SizedBox(height: 12),
                     if (provider.items.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
                         child: Center(
                           child: Text(
                             'Belum ada pengeluaran.\nTekan "Catat" untuk menambah.',
@@ -346,7 +346,7 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Catat Pengeluaran', style: AppTextStyles.displayMedium),
+              const Text('Catat Pengeluaran', style: AppTextStyles.displayMedium),
               const SizedBox(height: 16),
               TextField(
                 controller: _keteranganController,
@@ -396,7 +396,7 @@ class _FormPengeluaranState extends State<_FormPengeluaran> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total Harga', style: AppTextStyles.bodyLarge),
+                    const Text('Total Harga', style: AppTextStyles.bodyLarge),
                     Text(
                       'Rp${_formatRupiah(_totalHarga)}',
                       style: AppTextStyles.priceLarge

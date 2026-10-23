@@ -162,7 +162,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
                         warna: AppColors.forestGreenDark,
                       ),
                       const SizedBox(height: 16),
-                      Text('Rincian Pembayaran',
+                      const Text('Rincian Pembayaran',
                           style: AppTextStyles.displayMedium),
                       const SizedBox(height: 8),
                       _BarisMetode(
@@ -181,7 +181,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
                         nilai: _masukPerMetode('transfer'),
                       ),
                       const SizedBox(height: 16),
-                      Text('Rekap Harian', style: AppTextStyles.displayMedium),
+                      const Text('Rekap Harian', style: AppTextStyles.displayMedium),
                       const SizedBox(height: 4),
                       ..._rekapHarian(),
                     ],
@@ -200,8 +200,8 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
     if (hariUrut.isEmpty) {
       return [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
           child: Text('Belum ada pesanan bulan ini.',
               style: AppTextStyles.bodyMedium),
         ),
