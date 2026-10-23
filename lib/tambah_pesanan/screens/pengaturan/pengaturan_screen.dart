@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../menu_board/providers/theme_provider.dart';
 
 // PENTING: samain 2 import di bawah ini dengan path theme yang dipake
 // file lain di project kamu (tinggal copy dari dashboard_screen.dart).
@@ -47,8 +49,8 @@ class PengaturanScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Sapuangin Coffee & Farm',
-                        style:
-                            AppTextStyles.displayMedium.copyWith(color: Colors.white),
+                        style: AppTextStyles.displayMedium
+                            .copyWith(color: Colors.white),
                       ),
                       const SizedBox(height: 2),
                       const Text(
@@ -91,32 +93,27 @@ class PengaturanScreen extends StatelessWidget {
           // ===== tampilan =====
           _judul('TAMPILAN'),
           _kartu(
-            ListTile(
-              enabled: false,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              leading: _ikon(Icons.dark_mode),
-              title: const Text('Mode Gelap / Terang',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              subtitle: const Text(
-                'Bisa ganti-ganti tema biar makin modern — segera hadir',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Segera',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.forestGreenDark,
+            Consumer<ThemeProvider>(
+              builder: (context, themeProvider, _) {
+                final gelap = themeProvider.themeMode == ThemeMode.dark;
+                return SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 6),
+                  secondary: _ikon(gelap ? Icons.dark_mode : Icons.light_mode),
+                  title: const Text('Mode Gelap / Terang',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  subtitle: Text(
+                    gelap ? 'Mode gelap aktif' : 'Mode terang aktif',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-              ),
+                  value: gelap,
+                  activeColor: AppColors.forestGreen,
+                  onChanged: (_) => themeProvider.toggleTheme(),
+                );
+              },
             ),
           ),
           const SizedBox(height: 24),
@@ -134,9 +131,9 @@ class PengaturanScreen extends StatelessWidget {
                           TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                   SizedBox(height: 4),
                   Text(
-                    'Aplikasi kasir buat Sapuangin Coffee & Farm. '
-                    'Semua data tersimpan aman di Supabase.',
-                    style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
+                    'Aplikasi Kasir Sapuangin dibuat untuk membantu pekerjaan kasir Sapuangin Coffee & Farm: mencatat pesanan, mengelola menu, serta mencatat keuangan agar transparan dan mudah diperiksa.',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.black54, height: 1.5),
                   ),
                 ],
               ),
@@ -145,7 +142,7 @@ class PengaturanScreen extends StatelessWidget {
           const SizedBox(height: 24),
           const Center(
             child: Text(
-              'Dibuat khusus buat keluarga Sapuangin Coffee & Farm',
+              'Dirancang khusus untuk Sapuangin Coffee & Farm',
               style: TextStyle(fontSize: 11, color: Colors.black38),
             ),
           ),

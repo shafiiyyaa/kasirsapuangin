@@ -96,8 +96,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Riwayat Pesanan'),
-        leading: IconButton(
+        leading: AppScaffold.isWide(context) ? null : IconButton(
           icon: const Icon(Icons.menu),
           tooltip: 'Buka menu',
           onPressed: () => AppScaffold.openMenu(context),

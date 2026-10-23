@@ -31,8 +31,7 @@ class AppDrawer extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Kasir Sapuangin',
-                      style: AppTextStyles.displayMedium),
+                  Text('Kasir Sapuangin', style: AppTextStyles.displayMedium),
                   const SizedBox(height: 2),
                   Text(
                     'Sapuangin Coffee & Farm',
@@ -75,12 +74,11 @@ class AppDrawer extends StatelessWidget {
               onTap: () => _pindah(context, '/pengeluaran', push: true),
             ),
             const Divider(),
-            const _MenuItem(
+            _MenuItem(
               icon: Icons.settings_outlined,
               label: 'Pengaturan',
-              selected: false,
-              onTap: null, // menyusul
-              trailing: 'Segera',
+              selected: currentIndex == 3,
+              onTap: () => _pindah(context, '/pengaturan', push: true),
             ),
           ],
         ),
@@ -94,14 +92,12 @@ class _MenuItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
-  final String? trailing;
 
   const _MenuItem({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
-    this.trailing,
   });
 
   @override
@@ -116,13 +112,6 @@ class _MenuItem extends StatelessWidget {
           fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
         ),
       ),
-      trailing: trailing == null
-          ? null
-          : Text(
-              trailing!,
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textSecondary),
-            ),
       onTap: onTap,
     );
   }

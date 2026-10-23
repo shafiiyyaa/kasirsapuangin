@@ -112,8 +112,9 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Menu'),
-        leading: IconButton(
+        leading: AppScaffold.isWide(context) ? null : IconButton(
           icon: const Icon(Icons.menu),
           tooltip: 'Buka menu',
           onPressed: () => AppScaffold.openMenu(context),

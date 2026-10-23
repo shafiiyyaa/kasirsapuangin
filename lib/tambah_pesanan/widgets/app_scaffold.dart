@@ -4,10 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import 'app_drawer.dart';
 
-/// Shell utama: drawer menu samping (navigasi utama) + FAB tambah
-/// pesanan (hanya di Beranda). Tidak ada bottom nav lagi.
+/// Shell responsif: drawer pada HP portrait, sidebar permanen pada layar lebar.
 class AppScaffold extends StatefulWidget {
-  /// 0 = Beranda, 1 = Menu, 2 = Riwayat
   final int currentIndex;
   final Widget child;
 
@@ -17,20 +15,15 @@ class AppScaffold extends StatefulWidget {
     required this.child,
   });
 
-  /// Dipanggil dari AppBar halaman dalam untuk membuka drawer.
-  ///
-  /// Sekarang AMAN dipanggil dari context mana pun (termasuk
-  /// context build milik screen yang ada DI ATAS AppScaffold),
-  /// karena nggak lagi andelin `findAncestorWidgetOfExactType`.
+  static bool isWide(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= 900;
+
   static void openMenu(BuildContext context) {
-    // 1) Ambil AppScaffold yang lagi aktif (paling atas di layar).
     final state = _AppScaffoldState.aktif;
-    if (state != null) {
+    if (state != null && !isWide(context)) {
       state.bukaDrawer();
       return;
     }
-    // 2) Fallback: kalau caller kebetulan di dalam body AppScaffold,
-    //    cara klasik tetap jalan.
     Scaffold.maybeOf(context)?.openDrawer();
   }
 
@@ -39,11 +32,7 @@ class AppScaffold extends StatefulWidget {
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  /// Daftar semua AppScaffold yang masih hidup di tree.
-  /// Yang terakhir dibuat = yang lagi tampil di layar.
-  /// Pas route di-pop/di-replace, yang mati otomatis keluar dari daftar.
   static final List<_AppScaffoldState> _daftarHidup = [];
-
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static _AppScaffoldState? get aktif =>
@@ -61,15 +50,69 @@ class _AppScaffoldState extends State<AppScaffold> {
     super.dispose();
   }
 
-  void bukaDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+  void bukaDrawer() => _scaffoldKey.currentState?.openDrawer();
+
+  Widget _sidebar() => Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          border: Border(right: BorderSide(color: AppColors.border)),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kasir Sapuangin', style: AppTextStyles.displayMedium),
+                    const SizedBox(height: 2),
+                    Text('Sapuangin Coffee & Farm',
+                        style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              _navItem(Icons.space_dashboard_outlined, 'Beranda',
+                  widget.currentIndex == 0, () => context.go('/')),
+              _navItem(Icons.restaurant_menu_outlined, 'Menu',
+                  widget.currentIndex == 1, () => context.go('/menu')),
+              _navItem(Icons.receipt_long_outlined, 'Riwayat Pesanan',
+                  widget.currentIndex == 2, () => context.go('/riwayat')),
+              const Divider(),
+              _navItem(Icons.bar_chart_outlined, 'Statistik', false,
+                  () => context.push('/statistik')),
+              _navItem(Icons.shopping_basket_outlined, 'Pengeluaran', false,
+                  () => context.push('/pengeluaran')),
+              const Divider(),
+              _navItem(Icons.settings_outlined, 'Pengaturan',
+                  widget.currentIndex == 3, () => context.push('/pengaturan')),
+            ],
+          ),
+        ),
+      );
+
+  Widget _navItem(IconData icon, String label, bool selected, VoidCallback onTap) {
+    final color = selected ? AppColors.forestGreen : AppColors.textSecondary;
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(label, style: AppTextStyles.bodyLarge.copyWith(
+        color: selected ? AppColors.forestGreen : AppColors.textPrimary,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+      )),
+      onTap: onTap,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final wide = AppScaffold.isWide(context);
+    final content = Scaffold(
       key: _scaffoldKey,
-      drawer: AppDrawer(currentIndex: widget.currentIndex),
+      drawer: wide ? null : AppDrawer(currentIndex: widget.currentIndex),
       body: widget.child,
       floatingActionButton: widget.currentIndex == 0
           ? FloatingActionButton(
@@ -82,6 +125,14 @@ class _AppScaffoldState extends State<AppScaffold> {
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+
+    if (!wide) return content;
+    return Row(
+      children: [
+        _sidebar(),
+        Expanded(child: content),
+      ],
     );
   }
 }
