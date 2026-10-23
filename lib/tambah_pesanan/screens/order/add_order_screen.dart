@@ -18,6 +18,7 @@ import '../../../menu_board/providers/order_provider.dart';
 import '../../services/receipt_service.dart'; // ← sesuaikan lokasi receipt_service.dart kamu
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/app_scaffold.dart';
 
 String rupiah(num nominal) {
   final digits = nominal.toInt().toString();
@@ -137,7 +138,14 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Tambah Pesanan')),
+      appBar: AppScaffold.isWide(context) ? null : AppBar(
+        title: const Text('Tambah Pesanan'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Buka menu',
+          onPressed: () => AppScaffold.openMenu(context),
+        ),
+      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.forestGreen))

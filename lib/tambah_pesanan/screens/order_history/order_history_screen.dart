@@ -95,7 +95,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppScaffold.isWide(context) ? null : AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Riwayat Pesanan'),
         leading: AppScaffold.isWide(context) ? null : IconButton(

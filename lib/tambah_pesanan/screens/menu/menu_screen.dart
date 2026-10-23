@@ -111,7 +111,7 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppScaffold.isWide(context) ? null : AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Menu'),
         leading: AppScaffold.isWide(context) ? null : IconButton(

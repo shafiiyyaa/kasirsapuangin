@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_scaffold.dart';
 import 'package:provider/provider.dart';
 
 import '../../../menu_board/models/order.dart';
@@ -95,7 +96,14 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final selisih = _uangMasuk - uangKeluar;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Statistik')),
+      appBar: AppScaffold.isWide(context) ? null : AppBar(
+        title: const Text('Statistik'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Buka menu',
+          onPressed: () => AppScaffold.openMenu(context),
+        ),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null

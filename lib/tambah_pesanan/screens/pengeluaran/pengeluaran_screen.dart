@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_scaffold.dart';
 import 'package:provider/provider.dart';
 
 import '../../../menu_board/providers/pengeluaran_provider.dart';
@@ -139,7 +140,14 @@ class _PengeluaranScreenState extends State<PengeluaranScreen> {
     final totalBulanIni = provider.totalPadaBulan(now.year, now.month);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengeluaran')),
+      appBar: AppScaffold.isWide(context) ? null : AppBar(
+        title: const Text('Pengeluaran'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Buka menu',
+          onPressed: () => AppScaffold.openMenu(context),
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _bukaFormTambah,
         backgroundColor: AppColors.gold,

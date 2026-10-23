@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_scaffold.dart';
 import 'package:provider/provider.dart';
 import '../../../menu_board/providers/theme_provider.dart';
 
@@ -16,10 +17,13 @@ class PengaturanScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.forestGreen,
-        foregroundColor: Colors.white,
+      appBar: AppScaffold.isWide(context) ? null : AppBar(
         title: const Text('Pengaturan'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Buka menu',
+          onPressed: () => AppScaffold.openMenu(context),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
