@@ -5,7 +5,6 @@ import '../../../menu_board/models/menu_item.dart';
 import '../../../menu_board/providers/menu_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/app_scaffold.dart';
-import '../../widgets/menu_item_card.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -15,30 +14,20 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  final _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   String _query = '';
-  String? _kategoriTerpilih; // null = Semua
-  bool _tampilanList = false; // false = grid, true = list
-
-  static const _urutanKategori = [
-    'Camilan',
-    'Snacks',
-    'Food',
-    'Manual Brew',
-    'Milk Based',
-    'Coffee Based',
-    'Non Coffee',
-    'Mocktail',
-  ];
+  String? _selectedCategory;
+  bool _gridView = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MenuProvider>().loadMenu();
+      if (mounted) context.read<MenuProvider>().loadMenu();
     });
     _searchController.addListener(() {
-      setState(() => _query = _searchController.text.trim().toLowerCase());
+      final next = _searchController.text.trim().toLowerCase();
+      if (next != _query && mounted) setState(() => _query = next);
     });
   }
 
@@ -48,201 +37,353 @@ class _MenuScreenState extends State<MenuScreen> {
     super.dispose();
   }
 
-  List<MenuItem> _terapkanFilter(List<MenuItem> items) {
-    return items.where((e) {
-      final cocokKategori =
-          _kategoriTerpilih == null || e.kategori == _kategoriTerpilih;
-      final cocokQuery =
-          _query.isEmpty || e.nama.toLowerCase().contains(_query);
-      return cocokKategori && cocokQuery;
+  List<MenuItem> _filterMenu(List<MenuItem> items) {
+    return items.where((item) {
+      final matchesQuery = _query.isEmpty ||
+          item.nama.toLowerCase().contains(_query) ||
+          item.kategori.toLowerCase().contains(_query);
+      final matchesCategory =
+          _selectedCategory == null || item.kategori == _selectedCategory;
+      return matchesQuery && matchesCategory;
     }).toList();
   }
 
-  Map<String, List<MenuItem>> _kelompokkanPerKategori(List<MenuItem> items) {
-    final map = <String, List<MenuItem>>{};
-    for (final item in items) {
-      map.putIfAbsent(item.kategori, () => []).add(item);
-    }
-    return map;
-  }
-
-  Future<void> _toggleTersedia(MenuItem item) async {
-    final provider = context.read<MenuProvider>();
+  Future<void> _toggleAvailability(MenuItem item) async {
     try {
-      await provider.ubahStatusTersedia(item.id, !item.tersedia);
-    } catch (e) {
+      await context
+          .read<MenuProvider>()
+          .ubahStatusTersedia(item.id, !item.tersedia);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengubah status: $e')),
+        SnackBar(
+          content: Text(item.tersedia
+              ? '${item.nama} ditandai habis.'
+              : '${item.nama} tersedia kembali.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengubah status menu: $error'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
 
-  Widget _buildFilterChips(MenuProvider provider) {
-    final kategoris = [...provider.kategoriList]..sort((a, b) {
-        final ia = _urutanKategori.indexOf(a);
-        final ib = _urutanKategori.indexOf(b);
-        return (ia < 0 ? 999 : ia).compareTo(ib < 0 ? 999 : ib);
-      });
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          _FilterChip(
-            label: 'Semua',
-            selected: _kategoriTerpilih == null,
-            onTap: () => setState(() => _kategoriTerpilih = null),
-          ),
-          for (final k in kategoris) ...[
-            const SizedBox(width: 8),
-            _FilterChip(
-              label: k,
-              selected: _kategoriTerpilih == k,
-              onTap: () => setState(() => _kategoriTerpilih = k),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppScaffold.isWide(context) ? null : AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Menu'),
-        leading: AppScaffold.isWide(context) ? null : IconButton(
-          icon: const Icon(Icons.menu),
-          tooltip: 'Buka menu',
-          onPressed: () => AppScaffold.openMenu(context),
-        ),
-        actions: [
-          IconButton(
-            tooltip: _tampilanList ? 'Tampilan grid' : 'Tampilan list',
-            icon: Icon(
-              _tampilanList
-                  ? Icons.grid_view_outlined
-                  : Icons.view_list_outlined,
-            ),
-            onPressed: () => setState(() => _tampilanList = !_tampilanList),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Cari menu...',
-                prefixIcon: Icon(Icons.search, size: 20),
+      backgroundColor: AppColors.background,
+      appBar: AppScaffold.isWide(context)
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              title: const Text('Menu'),
+              leading: IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Buka menu',
+                onPressed: () => AppScaffold.openMenu(context),
               ),
             ),
-          ),
-          Consumer<MenuProvider>(
-            builder: (context, provider, _) => _buildFilterChips(provider),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Consumer<MenuProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.items.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      body: Consumer<MenuProvider>(
+        builder: (context, provider, _) {
+          final categories = provider.kategoriList;
+          final filtered = _filterMenu(provider.items);
 
-                if (provider.error != null && provider.items.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
+          if (provider.isLoading && provider.items.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (provider.error != null && provider.items.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      provider.error!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: provider.loadMenu,
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: provider.loadMenu,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Cari nama atau kategori menu...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Hapus pencarian',
+                            onPressed: _searchController.clear,
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    filled: true,
+                    fillColor: scheme.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Kategori',
+                  style: AppTextStyles.displaySmall.copyWith(
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                SizedBox(
+                  height: 94,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      _CategoryTile(
+                        label: 'Semua',
+                        icon: Icons.grid_view_rounded,
+                        selected: _selectedCategory == null,
+                        onTap: () => setState(() => _selectedCategory = null),
+                      ),
+                      for (final category in categories)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: _CategoryTile(
+                            label: category,
+                            icon: _iconForCategory(category),
+                            selected: _selectedCategory == category,
+                            onTap: () => setState(
+                              () => _selectedCategory = category,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            provider.error!,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodyMedium,
+                            'Daftar Menu',
+                            style: AppTextStyles.displaySmall.copyWith(
+                              color: scheme.onSurface,
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          OutlinedButton(
-                            onPressed: () => provider.loadMenu(),
-                            child: const Text('Coba Lagi'),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Atur ketersediaan menu',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }
-
-                final filtered = _terapkanFilter(provider.items);
-
-                if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Menu tidak ditemukan.',
-                      style: AppTextStyles.bodyMedium,
+                    IconButton(
+                      tooltip: 'Tampilan grid',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _gridView = true),
+                      style: IconButton.styleFrom(
+                        backgroundColor: _gridView
+                            ? scheme.primary.withOpacity(0.12)
+                            : Colors.transparent,
+                        foregroundColor: _gridView
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
+                      icon: const Icon(Icons.grid_view_rounded),
                     ),
-                  );
-                }
-
-                final grouped = _kelompokkanPerKategori(filtered);
-
-                return RefreshIndicator(
-                  onRefresh: provider.loadMenu,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    children: grouped.entries.map((entry) {
-                      return _KategoriSection(
-                        judul: entry.key,
-                        items: entry.value,
-                        onToggleTersedia: _toggleTersedia,
-                        tampilanList: _tampilanList,
+                    IconButton(
+                      tooltip: 'Tampilan list',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _gridView = false),
+                      style: IconButton.styleFrom(
+                        backgroundColor: !_gridView
+                            ? scheme.primary.withOpacity(0.12)
+                            : Colors.transparent,
+                        foregroundColor: !_gridView
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
+                      icon: const Icon(Icons.view_list_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (filtered.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 42),
+                    child: Column(
+                      children: [
+                        Icon(Icons.search_off_rounded,
+                            size: 38, color: scheme.onSurfaceVariant),
+                        const SizedBox(height: 8),
+                        Text('Menu tidak ditemukan.',
+                            style: AppTextStyles.bodyMedium),
+                      ],
+                    ),
+                  )
+                else if (_gridView)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isLandscape =
+                          MediaQuery.orientationOf(context) == Orientation.landscape;
+                      // Empat kolom saat landscape, dua kolom saat portrait.
+                      final columns = isLandscape ? 4 : 2;
+                      return GridView.builder(
+                        itemCount: filtered.length,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: isLandscape ? 184 : 198,
+                        ),
+                        itemBuilder: (context, index) => _MenuGridCard(
+                          item: filtered[index],
+                          onToggle: () => _toggleAvailability(filtered[index]),
+                        ),
                       );
-                    }).toList(),
+                    },
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final item in filtered)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _MenuListRow(
+                            item: item,
+                            onToggle: () => _toggleAvailability(item),
+                          ),
+                        ),
+                    ],
                   ),
-                );
-              },
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-class _FilterChip extends StatelessWidget {
+IconData _iconForCategory(String category) {
+  final value = category.toLowerCase();
+  if (value.contains('coffee')) return Icons.coffee_rounded;
+  if (value.contains('non coffee') || value.contains('non-coffee')) {
+    return Icons.local_drink_rounded;
+  }
+  if (value.contains('milk')) return Icons.local_cafe_rounded;
+  if (value.contains('manual brew') || value.contains('brew')) {
+    return Icons.coffee_maker_rounded;
+  }
+  if (value.contains('snack') || value.contains('camilan')) {
+    return Icons.lunch_dining_rounded;
+  }
+  if (value.contains('food') || value.contains('makanan')) {
+    return Icons.restaurant_rounded;
+  }
+  if (value.contains('dessert') || value.contains('roti')) {
+    return Icons.cake_rounded;
+  }
+  if (value.contains('mocktail') || value.contains('drink')) {
+    return Icons.local_bar_rounded;
+  }
+  return Icons.restaurant_menu_rounded;
+}
+
+class _CategoryTile extends StatefulWidget {
   final String label;
+  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
-  const _FilterChip({
+  const _CategoryTile({
     required this.label,
+    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   @override
+  State<_CategoryTile> createState() => _CategoryTileState();
+}
+
+class _CategoryTileState extends State<_CategoryTile> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+    final scheme = Theme.of(context).colorScheme;
+    final background = widget.selected
+        ? scheme.primary
+        : (_hovered ? scheme.primary.withOpacity(0.08) : scheme.surface);
+    final foreground = widget.selected ? scheme.onPrimary : scheme.primary;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        width: 116,
+        height: 94,
         decoration: BoxDecoration(
-          color: selected ? AppColors.forestGreen : AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
+          color: background,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppColors.forestGreen : AppColors.border,
+            color: widget.selected ? scheme.primary : scheme.outlineVariant,
           ),
         ),
-        child: Text(
-          label,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: selected ? AppColors.textOnGreen : AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(widget.icon, size: 28, color: foreground),
+                  const SizedBox(height: 7),
+                  Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: foreground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -250,76 +391,204 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _KategoriSection extends StatelessWidget {
-  final String judul;
-  final List<MenuItem> items;
-  final ValueChanged<MenuItem> onToggleTersedia;
-  final bool tampilanList;
+class _MenuGridCard extends StatelessWidget {
+  final MenuItem item;
+  final VoidCallback onToggle;
 
-  const _KategoriSection({
-    required this.judul,
-    required this.items,
-    required this.onToggleTersedia,
-    required this.tampilanList,
-  });
-
-  Widget _switch(MenuItem item) {
-    return Switch(
-      value: item.tersedia,
-      onChanged: (_) => onToggleTersedia(item),
-      activeThumbColor: AppColors.forestGreen,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    );
-  }
+  const _MenuGridCard({required this.item, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 8),
-          child: Text(judul, style: AppTextStyles.displayMedium),
-        ),
-        if (tampilanList)
-          Column(
+    final scheme = Theme.of(context).colorScheme;
+    final available = item.tersedia;
+    final fallbackIcon = item.tipe.toLowerCase() == 'minuman'
+        ? Icons.local_cafe_rounded
+        : Icons.restaurant_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: double.infinity,
+                color: scheme.surfaceContainerHighest,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (item.gambarUrl != null && item.gambarUrl!.trim().isNotEmpty)
+                      Image.network(
+                        item.gambarUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Icon(fallbackIcon,
+                              size: 34, color: scheme.primary),
+                        ),
+                      )
+                    else
+                      Center(
+                        child: Icon(fallbackIcon,
+                            size: 34, color: scheme.primary),
+                      ),
+                    Positioned(
+                      top: 5,
+                      right: 5,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: available
+                              ? scheme.tertiaryContainer
+                              : scheme.errorContainer,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          available ? 'Tersedia' : 'Habis',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: available
+                                ? scheme.onTertiaryContainer
+                                : scheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            item.nama,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface),
+          ),
+          Text(
+            item.kategori,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
             children: [
-              for (final item in items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: MenuItemListTile(
-                    item: item,
-                    trailing: _switch(item),
+              Expanded(
+                child: Text(
+                  _rupiah(item.harga),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.price.copyWith(fontSize: 12),
+                ),
+              ),
+              SizedBox(
+                width: 30,
+                height: 30,
+                child: IconButton.filled(
+                  tooltip: available ? 'Tandai habis' : 'Aktifkan kembali',
+                  onPressed: onToggle,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  style: IconButton.styleFrom(
+                    backgroundColor: available ? scheme.primary : scheme.error,
+                    foregroundColor: scheme.onPrimary,
+                  ),
+                  icon: Icon(
+                    available ? Icons.check_rounded : Icons.refresh_rounded,
+                    size: 17,
                   ),
                 ),
+              ),
             ],
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final kolom = kolomMenuUntukLebar(constraints.maxWidth);
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: kolom,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  mainAxisExtent: tinggiKartuMenu(kolom),
-                ),
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return MenuItemCard(
-                    item: item,
-                    trailing: _switch(item),
-                  );
-                },
-              );
-            },
           ),
-      ],
+        ],
+      ),
     );
   }
+}
+
+class _MenuListRow extends StatelessWidget {
+  final MenuItem item;
+  final VoidCallback onToggle;
+
+  const _MenuListRow({required this.item, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final available = item.tersedia;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.nama,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.titleSmall),
+                const SizedBox(height: 2),
+                Text(item.kategori,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                        color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 3),
+                Text(_rupiah(item.harga), style: AppTextStyles.price),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: IconButton.filled(
+              tooltip: available ? 'Tandai habis' : 'Aktifkan kembali',
+              onPressed: onToggle,
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(
+                backgroundColor: available ? scheme.primary : scheme.error,
+                foregroundColor: scheme.onPrimary,
+              ),
+              icon: Icon(
+                available ? Icons.check_rounded : Icons.refresh_rounded,
+                size: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _rupiah(num nominal) {
+  final digits = nominal.toInt().toString();
+  final grouped = digits.replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
+  return 'Rp $grouped';
 }

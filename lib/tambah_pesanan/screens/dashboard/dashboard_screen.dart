@@ -415,24 +415,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text('Tampilan', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
-                const SizedBox(width: 8),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(
-                      value: true,
-                      icon: Icon(Icons.grid_view_rounded, size: 17),
-                      label: Text('Grid'),
-                    ),
-                    ButtonSegment<bool>(
-                      value: false,
-                      icon: Icon(Icons.view_list_rounded, size: 17),
-                      label: Text('List'),
-                    ),
-                  ],
-                  selected: {_gridView},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) => setState(() => _gridView = selection.first),
+                IconButton(
+                  tooltip: 'Tampilan grid',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() => _gridView = true),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _gridView
+                        ? scheme.primary.withOpacity(0.12)
+                        : Colors.transparent,
+                    foregroundColor: _gridView
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                  ),
+                  icon: const Icon(Icons.grid_view_rounded),
+                ),
+                IconButton(
+                  tooltip: 'Tampilan list',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() => _gridView = false),
+                  style: IconButton.styleFrom(
+                    backgroundColor: !_gridView
+                        ? scheme.primary.withOpacity(0.12)
+                        : Colors.transparent,
+                    foregroundColor: !_gridView
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                  ),
+                  icon: const Icon(Icons.view_list_rounded),
                 ),
               ],
             ),
@@ -963,18 +972,25 @@ class _MenuPreviewCard extends StatelessWidget {
                   Positioned(
                     top: 5,
                     right: 5,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: available ? scheme.tertiaryContainer : scheme.errorContainer,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onToggle,
                         borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        available ? 'Tersedia' : 'Habis',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: available ? scheme.tertiaryContainer : scheme.errorContainer,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            available ? 'Tersedia' : 'Habis',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -993,16 +1009,9 @@ class _MenuPreviewCard extends StatelessWidget {
                 child: Text(_formatRupiah(item.harga), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.price.copyWith(fontSize: 12)),
               ),
               _SmallActionButton(
-                tooltip: available ? 'Tandai habis' : 'Aktifkan kembali',
-                icon: available ? Icons.check_rounded : Icons.refresh_rounded,
-                color: available ? scheme.primary : scheme.error,
-                onPressed: onToggle,
-              ),
-              const SizedBox(width: 4),
-              _SmallActionButton(
                 tooltip: 'Tambah ke pesanan',
                 icon: Icons.add_rounded,
-                color: scheme.secondary,
+                color: const Color(0xFF218653),
                 onPressed: available ? onAdd : null,
               ),
             ],
@@ -1050,17 +1059,30 @@ class _MenuListRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          _SmallActionButton(
-            tooltip: available ? 'Tandai habis' : 'Aktifkan kembali',
-            icon: available ? Icons.check_rounded : Icons.refresh_rounded,
-            color: available ? scheme.primary : scheme.error,
-            onPressed: onToggle,
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+              decoration: BoxDecoration(
+                color: available ? scheme.tertiaryContainer : scheme.errorContainer,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                available ? 'Tersedia' : 'Habis',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 5),
           _SmallActionButton(
             tooltip: 'Tambah ke pesanan',
             icon: Icons.add_rounded,
-            color: scheme.secondary,
+            color: const Color(0xFF218653),
             onPressed: available ? onAdd : null,
           ),
         ],
