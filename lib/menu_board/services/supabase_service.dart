@@ -1,3 +1,4 @@
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/menu_item.dart';
@@ -20,7 +21,9 @@ class SupabaseService {
 
   static SupabaseClient get client => Supabase.instance.client;
 
-  // ---------- MENU ----------
+  // ============================================================
+  // MENU
+  // ============================================================
 
   static Future<List<MenuItem>> fetchMenuItems() async {
     final data = await client
@@ -28,6 +31,7 @@ class SupabaseService {
         .select()
         .order('kategori')
         .order('nama');
+
     return (data as List)
         .map((e) => MenuItem.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -39,32 +43,77 @@ class SupabaseService {
         .insert(item.toInsertMap())
         .select()
         .single();
+
     return MenuItem.fromMap(data);
   }
 
   static Future<void> updateMenuItem(MenuItem item) async {
-    await client.from('menu_items').update(item.toMap()).eq('id', item.id);
+    await client
+        .from('menu_items')
+        .update(item.toMap())
+        .eq('id', item.id);
   }
 
-  static Future<void> setMenuTersedia(String id, bool tersedia) async {
-    await client.from('menu_items').update({'tersedia': tersedia}).eq('id', id);
+  static Future<void> setMenuTersedia(
+    String id,
+    bool tersedia,
+  ) async {
+    await client
+        .from('menu_items')
+        .update({'tersedia': tersedia})
+        .eq('id', id);
   }
 
   static Future<void> deleteMenuItem(String id) async {
     await client.from('menu_items').delete().eq('id', id);
   }
 
-  // ---------- PESANAN ----------
+  // ============================================================
+  // PESANAN
+  // ============================================================
 
+  /// Membuat pesanan baru.
+  ///
+  /// jenisPesanan:
+  /// - dine_in
+  /// - takeaway
+  ///
+  /// sumberPesanan:
+  /// - kasir
+  /// - qr
+  ///
+  /// statusPembayaran:
+  /// - belum_dibayar
+  /// - dibayar
+  ///
+  /// statusPengantaran:
+  /// - belum_diantar
+  /// - sudah_diantar
+  ///
+  /// Default untuk pesanan kasir adalah dine-in dan belum dibayar.
+  /// Status dibayar hanya digunakan jika pembayaran benar-benar
+  /// sudah diterima atau dikonfirmasi.
   static Future<Order> createOrder({
     String? namaPelanggan,
     String? meja,
     String metodePembayaran = 'cash',
     String? kasir,
     required List<CartItem> items,
+    String jenisPesanan = 'dine_in',
+    String sumberPesanan = 'kasir',
+    String statusPembayaran = 'belum_dibayar',
+    String statusPengantaran = 'belum_diantar',
   }) async {
-    final totalHarga = items.fold<int>(0, (sum, e) => sum + e.subtotal);
+    if (items.isEmpty) {
+      throw Exception('Keranjang pesanan masih kosong.');
+    }
 
+    final totalHarga = items.fold<int>(
+      0,
+      (sum, item) => sum + item.subtotal,
+    );
+
+    // Simpan data utama pesanan.
     final orderData = await client
         .from('orders')
         .insert({
@@ -74,160 +123,285 @@ class SupabaseService {
           'kasir': kasir,
           'total_harga': totalHarga,
           'status': OrderStatus.baru.dbValue,
+          'jenis_pesanan': jenisPesanan,
+          'sumber_pesanan': sumberPesanan,
+          'status_pembayaran': statusPembayaran,
+          'status_pengantaran': statusPengantaran,
         })
         .select()
         .single();
 
     final orderId = orderData['id'] as String;
 
+    // Simpan detail item pesanan.
     final itemRows = items
-        .map((e) => {
-              'order_id': orderId,
-              'menu_item_id': e.menuItemId,
-              'nama_menu': e.namaMenu,
-              'harga_satuan': e.hargaSatuan,
-              'jumlah': e.jumlah,
-              'catatan': e.catatan,
-            })
+        .map(
+          (item) => {
+            'order_id': orderId,
+            'menu_item_id': item.menuItemId,
+            'nama_menu': item.namaMenu,
+            'harga_satuan': item.hargaSatuan,
+            'jumlah': item.jumlah,
+            'catatan': item.catatan,
+          },
+        )
         .toList();
+
     await client.from('order_items').insert(itemRows);
 
-    // Balikin Order yang items-nya udah keisi, biar struk yang
-    // dicetak langsung setelah nyimpen langsung punya daftar item.
+    // Kembalikan pesanan lengkap agar bisa langsung ditampilkan
+    // atau dicetak tanpa harus mengambil ulang item dari database.
     final itemsTersimpan = items
-        .map((e) => OrderItem(
-              id: '',
-              orderId: orderId,
-              menuItemId: e.menuItemId,
-              namaMenu: e.namaMenu,
-              hargaSatuan: e.hargaSatuan,
-              jumlah: e.jumlah,
-              catatan: e.catatan,
-            ))
+        .map(
+          (item) => OrderItem(
+            id: '',
+            orderId: orderId,
+            menuItemId: item.menuItemId,
+            namaMenu: item.namaMenu,
+            hargaSatuan: item.hargaSatuan,
+            jumlah: item.jumlah,
+            catatan: item.catatan,
+          ),
+        )
         .toList();
-    return Order.fromMap(orderData, items: itemsTersimpan);
+
+    return Order.fromMap(
+      orderData,
+      items: itemsTersimpan,
+    );
   }
 
-  /// Riwayat pesanan terbaru beserta item-itemnya.
-  static Future<List<Order>> fetchOrders({int limit = 200}) async {
+  /// Mengambil pesanan terbaru beserta detail item.
+  static Future<List<Order>> fetchOrders({
+    int limit = 200,
+  }) async {
     final data = await client
         .from('orders')
         .select()
         .order('created_at', ascending: false)
         .limit(limit);
-    final rows = (data as List).cast<Map<String, dynamic>>();
-    if (rows.isEmpty) return const [];
 
-    final items = await _ambilItemPerOrder(rows);
-    return rows
-        .map((r) =>
-            Order.fromMap(r, items: items[r['id'] as String] ?? const []))
-        .toList();
+    final rows = (data as List).cast<Map<String, dynamic>>();
+
+    if (rows.isEmpty) {
+      return const [];
+    }
+
+    final itemsPerOrder = await _ambilItemPerOrder(rows);
+
+    return rows.map((row) {
+      final id = row['id'] as String;
+
+      return Order.fromMap(
+        row,
+        items: itemsPerOrder[id] ?? const [],
+      );
+    }).toList();
   }
 
-  /// Pesanan pada periode [awal .. akhir) — dipakai halaman Statistik.
+  /// Mengambil pesanan pada rentang tanggal.
+  /// Digunakan oleh halaman statistik dan riwayat.
   static Future<List<Order>> fetchOrdersPeriode(
-      DateTime awal, DateTime akhir) async {
+    DateTime awal,
+    DateTime akhir,
+  ) async {
     final data = await client
         .from('orders')
         .select()
-        .gte('created_at',
-            DateTime(awal.year, awal.month, awal.day).toUtc().toIso8601String())
+        .gte(
+          'created_at',
+          DateTime(
+            awal.year,
+            awal.month,
+            awal.day,
+          ).toUtc().toIso8601String(),
+        )
         .lt(
-            'created_at',
-            DateTime(akhir.year, akhir.month, akhir.day)
-                .toUtc()
-                .toIso8601String())
+          'created_at',
+          DateTime(
+            akhir.year,
+            akhir.month,
+            akhir.day,
+          ).toUtc().toIso8601String(),
+        )
         .order('created_at', ascending: false);
-    final rows = (data as List).cast<Map<String, dynamic>>();
-    if (rows.isEmpty) return const [];
 
-    final items = await _ambilItemPerOrder(rows);
-    return rows
-        .map((r) =>
-            Order.fromMap(r, items: items[r['id'] as String] ?? const []))
-        .toList();
+    final rows = (data as List).cast<Map<String, dynamic>>();
+
+    if (rows.isEmpty) {
+      return const [];
+    }
+
+    final itemsPerOrder = await _ambilItemPerOrder(rows);
+
+    return rows.map((row) {
+      final id = row['id'] as String;
+
+      return Order.fromMap(
+        row,
+        items: itemsPerOrder[id] ?? const [],
+      );
+    }).toList();
   }
 
-  /// Ambil semua order_items untuk sekumpulan baris orders,
-  /// dikelompokkan berdasarkan order_id.
+  /// Mengambil item untuk beberapa pesanan sekaligus.
   static Future<Map<String, List<OrderItem>>> _ambilItemPerOrder(
-      List<Map<String, dynamic>> orderRows) async {
+    List<Map<String, dynamic>> orderRows,
+  ) async {
+    final orderIds = orderRows
+        .map((row) => row['id'] as String)
+        .toList();
+
     final itemData = await client
         .from('order_items')
         .select()
-        .inFilter('order_id', orderRows.map((r) => r['id'] as String).toList());
+        .inFilter('order_id', orderIds);
 
-    final perOrder = <String, List<OrderItem>>{};
-    for (final row in (itemData as List).cast<Map<String, dynamic>>()) {
+    final hasil = <String, List<OrderItem>>{};
+
+    for (final row
+        in (itemData as List).cast<Map<String, dynamic>>()) {
       final item = OrderItem.fromMap(row);
-      perOrder.putIfAbsent(item.orderId, () => []).add(item);
+
+      hasil.putIfAbsent(item.orderId, () => []).add(item);
     }
-    return perOrder;
+
+    return hasil;
   }
 
+  /// Memperbarui status proses pesanan.
+  /// Status ini berbeda dengan status pengantaran.
   static Future<void> updateOrderStatus(
-      String orderId, OrderStatus status) async {
+    String orderId,
+    OrderStatus status,
+  ) async {
     await client
         .from('orders')
-        .update({'status': status.dbValue}).eq('id', orderId);
+        .update({'status': status.dbValue})
+        .eq('id', orderId);
   }
 
-  /// Hapus pesanan: bersihkan dulu order_items-nya, baru orders-nya.
+  /// Memperbarui status pengantaran.
+  static Future<void> updateStatusPengantaran(
+    String orderId, {
+    required bool sudahDiantar,
+  }) async {
+    await client
+        .from('orders')
+        .update({
+          'status_pengantaran':
+              sudahDiantar ? 'sudah_diantar' : 'belum_diantar',
+        })
+        .eq('id', orderId);
+  }
+
+  /// Memperbarui status pembayaran.
+  static Future<void> updateStatusPembayaran(
+    String orderId, {
+    required bool sudahDibayar,
+  }) async {
+    await client
+        .from('orders')
+        .update({
+          'status_pembayaran':
+              sudahDibayar ? 'dibayar' : 'belum_dibayar',
+        })
+        .eq('id', orderId);
+  }
+
+  /// Menghapus pesanan beserta item-itemnya.
   static Future<void> hapusOrder(String orderId) async {
-    await client.from('order_items').delete().eq('order_id', orderId);
-    await client.from('orders').delete().eq('id', orderId);
+    await client
+        .from('order_items')
+        .delete()
+        .eq('order_id', orderId);
+
+    await client
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
   }
 
-  /// Ringkasan dashboard: jumlah pesanan + pendapatan hari ini
-  /// (pesanan berstatus batal tidak dihitung di pendapatan).
+  /// Ringkasan pesanan dan pendapatan hari ini.
+  /// Pesanan batal tidak dihitung sebagai pendapatan.
   static Future<RingkasanHariIni> fetchRingkasanHariIni() async {
     final now = DateTime.now();
-    final awalHari =
-        DateTime(now.year, now.month, now.day).toUtc().toIso8601String();
+
+    // Menggunakan awal hari lokal, kemudian dikonversi ke UTC.
+    final awalHariLokal = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final awalHariUtc =
+        awalHariLokal.toUtc().toIso8601String();
 
     final data = await client
         .from('orders')
         .select('total_harga, status')
-        .gte('created_at', awalHari);
+        .gte('created_at', awalHariUtc);
 
     var jumlah = 0;
     var pendapatan = 0;
-    for (final row in (data as List).cast<Map<String, dynamic>>()) {
-      if ((row['status'] as String?) == 'batal') continue;
+
+    for (final row
+        in (data as List).cast<Map<String, dynamic>>()) {
+      if ((row['status'] as String?) == 'batal') {
+        continue;
+      }
+
       jumlah++;
-      pendapatan += (row['total_harga'] as int?) ?? 0;
+      pendapatan +=
+          (row['total_harga'] as num?)?.toInt() ?? 0;
     }
-    return RingkasanHariIni(jumlahPesanan: jumlah, totalPendapatan: pendapatan);
+
+    return RingkasanHariIni(
+      jumlahPesanan: jumlah,
+      totalPendapatan: pendapatan,
+    );
   }
 
-  // ---------- PENGELUARAN ----------
+  // ============================================================
+  // PENGELUARAN
+  // ============================================================
 
   static Future<List<Pengeluaran>> fetchPengeluaran() async {
     final data = await client
         .from('pengeluaran')
         .select()
         .order('created_at', ascending: false);
+
     return (data as List)
-        .map((e) => Pengeluaran.fromMap(e as Map<String, dynamic>))
+        .map(
+          (e) => Pengeluaran.fromMap(
+            e as Map<String, dynamic>,
+          ),
+        )
         .toList();
   }
 
-  static Future<Pengeluaran> addPengeluaran(Pengeluaran item) async {
+  static Future<Pengeluaran> addPengeluaran(
+    Pengeluaran item,
+  ) async {
     final data = await client
         .from('pengeluaran')
         .insert(item.toInsertMap())
         .select()
         .single();
+
     return Pengeluaran.fromMap(data);
   }
 
   static Future<void> hapusPengeluaran(String id) async {
-    await client.from('pengeluaran').delete().eq('id', id);
+    await client
+        .from('pengeluaran')
+        .delete()
+        .eq('id', id);
   }
 }
 
-/// Hasil ringkasan dashboard (jumlah pesanan + pendapatan hari ini).
+/// Hasil ringkasan dashboard.
 class RingkasanHariIni {
   final int jumlahPesanan;
   final int totalPendapatan;

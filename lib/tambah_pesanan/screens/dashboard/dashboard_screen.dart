@@ -528,7 +528,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: _SectionHeading(
                       title: 'Tambah Pesanan',
                       subtitle: 'Pilih menu lalu cek pesanan',
@@ -575,7 +575,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _metodePembayaran,
+                      initialValue: _metodePembayaran,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Pembayaran',
@@ -597,7 +597,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Text('Daftar pesanan', style: AppTextStyles.titleMedium),
                   ),
                   if (cart.isNotEmpty)
@@ -673,7 +673,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(child: Text('Total', style: AppTextStyles.titleMedium)),
+                  const Expanded(child: Text('Total', style: AppTextStyles.titleMedium)),
                   Text(_formatRupiah(provider.totalKeranjang), style: AppTextStyles.priceLarge),
                 ],
               ),

@@ -241,7 +241,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         Icon(Icons.search_off_rounded,
                             size: 38, color: scheme.onSurfaceVariant),
                         const SizedBox(height: 8),
-                        Text('Menu tidak ditemukan.',
+                        const Text('Menu tidak ditemukan.',
                             style: AppTextStyles.bodyMedium),
                       ],
                     ),
