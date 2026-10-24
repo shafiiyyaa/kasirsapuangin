@@ -20,12 +20,16 @@ class AppTheme {
   static ThemeData get theme => lightTheme;
 
   static ThemeData _buildTheme({required bool dark}) {
-    final background = dark ? AppColors.darkBackground : AppColors.lightBackground;
+    final background =
+        dark ? AppColors.darkBackground : AppColors.lightBackground;
     final surface = dark ? AppColors.darkSurface : AppColors.lightSurface;
-    final surfaceAlt = dark ? AppColors.darkSurfaceAlt : AppColors.lightSurfaceAlt;
+    final surfaceAlt =
+        dark ? AppColors.darkSurfaceAlt : AppColors.lightSurfaceAlt;
     final border = dark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPrimary = dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = dark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary =
+        dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        dark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final brightness = dark ? Brightness.dark : Brightness.light;
 
     final scheme = ColorScheme.fromSeed(
@@ -43,19 +47,27 @@ class AppTheme {
       surfaceContainerHighest: surfaceAlt,
       outline: border,
       outlineVariant: border,
-      primaryContainer: dark ? AppColors.forestGreenDark : const Color(0xFFE0EAE3),
-      onPrimaryContainer: dark ? AppColors.darkTextPrimary : AppColors.forestGreenDark,
+      primaryContainer:
+          dark ? AppColors.forestGreenDark : const Color(0xFFE0EAE3),
+      onPrimaryContainer:
+          dark ? AppColors.darkTextPrimary : AppColors.forestGreenDark,
       secondaryContainer: dark ? const Color(0xFF4B432A) : AppColors.goldMuda,
-      onSecondaryContainer: dark ? const Color(0xFFF7EAC0) : AppColors.forestGreenDark,
+      onSecondaryContainer:
+          dark ? const Color(0xFFF7EAC0) : AppColors.forestGreenDark,
       errorContainer: dark ? const Color(0xFF512D2D) : const Color(0xFFF5E2E0),
-      onErrorContainer: dark ? const Color(0xFFFFDAD6) : const Color(0xFF5D1717),
+      onErrorContainer:
+          dark ? const Color(0xFFFFDAD6) : const Color(0xFF5D1717),
       tertiary: dark ? const Color(0xFF91B6A1) : AppColors.forestGreenMuda,
       onTertiary: dark ? AppColors.darkBackground : AppColors.putih,
-      tertiaryContainer: dark ? const Color(0xFF294638) : const Color(0xFFDCE9DF),
-      onTertiaryContainer: dark ? AppColors.darkTextPrimary : AppColors.forestGreenDark,
+      tertiaryContainer:
+          dark ? const Color(0xFF294638) : const Color(0xFFDCE9DF),
+      onTertiaryContainer:
+          dark ? AppColors.darkTextPrimary : AppColors.forestGreenDark,
       inverseSurface: dark ? AppColors.lightSurface : AppColors.darkSurface,
-      onInverseSurface: dark ? AppColors.lightTextPrimary : AppColors.darkTextPrimary,
-      inversePrimary: dark ? const Color(0xFF9BC8B1) : AppColors.forestGreenMuda,
+      onInverseSurface:
+          dark ? AppColors.lightTextPrimary : AppColors.darkTextPrimary,
+      inversePrimary:
+          dark ? const Color(0xFF9BC8B1) : AppColors.forestGreenMuda,
       surfaceTint: AppColors.forestGreen,
     );
 
@@ -86,7 +98,8 @@ class AppTheme {
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: AppColors.textOnGreen),
-        titleTextStyle: AppTextStyles.displaySmall.copyWith(color: AppColors.textOnGreen),
+        titleTextStyle:
+            AppTextStyles.displaySmall.copyWith(color: AppColors.textOnGreen),
       ),
       cardTheme: CardThemeData(
         color: surface,
@@ -108,7 +121,8 @@ class AppTheme {
         fillColor: surface,
         hintStyle: TextStyle(color: textSecondary),
         labelStyle: TextStyle(color: textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: border),
@@ -130,34 +144,54 @@ class AppTheme {
           disabledForegroundColor: textSecondary,
           elevation: 0,
           textStyle: AppTextStyles.button.copyWith(color: AppColors.putih),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: dark ? AppColors.goldSoft : AppColors.forestGreen,
-          side: BorderSide(color: dark ? AppColors.goldSoft : AppColors.forestGreen),
+          side: BorderSide(
+              color: dark ? AppColors.goldSoft : AppColors.forestGreen),
           textStyle: AppTextStyles.button,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
+      // Switch: thumb putih, track hijau saat aktif (tersedia) dan abu saat
+      // mati (habis). Ganti AppColors.putih di thumbColor dengan
+      // AppColors.gold kalau mau thumb emas.
       switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) =>
-            states.contains(WidgetState.selected) ? AppColors.gold : textSecondary),
-        trackColor: WidgetStateProperty.resolveWith((states) =>
-            states.contains(WidgetState.selected) ? AppColors.forestGreen : surfaceAlt),
+        thumbColor: WidgetStateProperty.all(AppColors.putih),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return dark ? AppColors.forestGreenMuda : AppColors.forestGreen;
+          }
+          return dark ? AppColors.darkBorder : AppColors.abu;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+        thumbIcon: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const Icon(Icons.check_rounded,
+                color: AppColors.forestGreen);
+          }
+          return const Icon(Icons.close_rounded, color: AppColors.abu);
+        }),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: dark ? AppColors.darkSurfaceAlt : AppColors.forestGreenDark,
-        contentTextStyle: TextStyle(color: dark ? AppColors.darkTextPrimary : AppColors.putih),
+        backgroundColor:
+            dark ? AppColors.darkSurfaceAlt : AppColors.forestGreenDark,
+        contentTextStyle: TextStyle(
+            color: dark ? AppColors.darkTextPrimary : AppColors.putih),
         actionTextColor: AppColors.goldSoft,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.gold,
         foregroundColor: AppColors.forestGreenDark,
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.forestGreenMuda),
+      progressIndicatorTheme:
+          const ProgressIndicatorThemeData(color: AppColors.forestGreenMuda),
     );
   }
 }

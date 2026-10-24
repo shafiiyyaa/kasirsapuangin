@@ -1,4 +1,3 @@
-
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -28,8 +27,7 @@ class ReceiptService {
 
     final waktu = order.createdAt.toLocal();
 
-    final tanggal =
-        '${waktu.day.toString().padLeft(2, '0')}/'
+    final tanggal = '${waktu.day.toString().padLeft(2, '0')}/'
         '${waktu.month.toString().padLeft(2, '0')}/'
         '${waktu.year} '
         '${waktu.hour.toString().padLeft(2, '0')}:'
@@ -39,9 +37,7 @@ class ReceiptService {
         order.jenisPesanan == 'takeaway' ? 'Takeaway' : 'Dine-in';
 
     final statusBayar =
-        order.statusPembayaran == 'dibayar'
-            ? 'Sudah dibayar'
-            : 'Belum dibayar';
+        order.statusPembayaran == 'dibayar' ? 'Sudah dibayar' : 'Belum dibayar';
 
     pdf.addPage(
       pw.Page(
@@ -116,8 +112,7 @@ class ReceiptService {
                         ),
                       ],
                     ),
-                    if (item.catatan != null &&
-                        item.catatan!.isNotEmpty)
+                    if (item.catatan != null && item.catatan!.isNotEmpty)
                       pw.Padding(
                         padding: const pw.EdgeInsets.only(left: 14),
                         child: pw.Text(

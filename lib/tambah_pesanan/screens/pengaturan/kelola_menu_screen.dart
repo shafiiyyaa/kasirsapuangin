@@ -395,7 +395,6 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
             const SizedBox(width: 4),
             Switch(
               value: _tersedia(m),
-              activeThumbColor: AppColors.forestGreen,
               onChanged: (v) => _toggleTersedia(m, v),
             ),
           ],
@@ -674,7 +673,6 @@ class _FormMenuState extends State<_FormMenu> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _tersedia,
-                  activeThumbColor: AppColors.forestGreen,
                   onChanged: (v) => setState(() => _tersedia = v),
                   title: const Text('Tersedia',
                       style:

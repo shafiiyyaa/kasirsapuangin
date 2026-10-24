@@ -1,12 +1,3 @@
-// =============================================================
-// TAMBAH PESANAN
-// BARU di versi ini:
-//  1. Field NAMA KASIR di keranjang (wajib, ketik sekali kepake terus).
-//  2. Setelah simpan sukses ada tombol "Cetak Struk" yang manggil
-//     ReceiptService.cetakStruk(pesanan) — pesanan sudah bawa nama kasir.
-// Daftar menu diambil langsung dari Supabase (sama kaya Kelola Menu).
-// =============================================================
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -122,9 +113,23 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     context.read<OrderProvider>().loadRingkasanHariIni(); // refresh statistik
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Pesanan tersimpan • ${rupiah(pesanan.totalHarga)}'),
+        content: Text(
+          'Pesanan tersimpan • ${rupiah(pesanan.totalHarga)}',
+          style: const TextStyle(
+            color: Color(0xFF285B3A),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        backgroundColor: const Color(0xFFF0F8F1),
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFB8DCC0), width: 1),
+        ),
         action: SnackBarAction(
           label: 'Cetak Struk',
+          textColor: const Color(0xFF285B3A),
           onPressed: () => ReceiptService.cetakStruk(pesanan),
         ),
       ),
@@ -138,14 +143,16 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppScaffold.isWide(context) ? null : AppBar(
-        title: const Text('Tambah Pesanan'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          tooltip: 'Buka menu',
-          onPressed: () => AppScaffold.openMenu(context),
-        ),
-      ),
+      appBar: AppScaffold.isWide(context)
+          ? null
+          : AppBar(
+              title: const Text('Tambah Pesanan'),
+              leading: IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Buka menu',
+                onPressed: () => AppScaffold.openMenu(context),
+              ),
+            ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.forestGreen))
@@ -301,6 +308,7 @@ class _CartSheetState extends State<_CartSheet> {
   late final TextEditingController _kasirC;
   late final TextEditingController _namaC;
   late final TextEditingController _mejaC;
+  String _jenisPesanan = 'dine_in';
 
   @override
   void initState() {
@@ -309,6 +317,7 @@ class _CartSheetState extends State<_CartSheet> {
     _kasirC = TextEditingController(text: prov.kasir);
     _namaC = TextEditingController(text: prov.namaPelanggan);
     _mejaC = TextEditingController(text: prov.meja);
+    _jenisPesanan = prov.jenisPesanan;
   }
 
   @override
@@ -332,7 +341,8 @@ class _CartSheetState extends State<_CartSheet> {
     final prov = context.read<OrderProvider>();
     prov.setKasir(_kasirC.text);
     prov.setNamaPelanggan(_namaC.text);
-    prov.setMeja(_mejaC.text);
+    prov.setJenisPesanan(_jenisPesanan);
+    prov.setMeja(_jenisPesanan == 'dine_in' ? _mejaC.text : '');
 
     final pesanan = await prov.simpanPesanan();
     if (!mounted) return;
@@ -448,12 +458,66 @@ class _CartSheetState extends State<_CartSheet> {
                     icon: Icons.person_rounded,
                   ),
                   const SizedBox(height: 10),
-                  _Field(
-                    controller: _mejaC,
-                    label: 'Nomor Meja (opsional)',
-                    hint: 'misal: 3',
-                    icon: Icons.table_restaurant_rounded,
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Jenis Pesanan',
+                      style: AppTextStyles.titleSmall,
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        avatar: const Icon(
+                          Icons.table_restaurant_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Dine-in'),
+                        selected: _jenisPesanan == 'dine_in',
+                        onSelected: (_) {
+                          setState(() => _jenisPesanan = 'dine_in');
+                        },
+                        showCheckmark: false,
+                        selectedColor:
+                            AppColors.forestGreen.withValues(alpha: 0.14),
+                        backgroundColor: AppColors.surface,
+                        side: BorderSide(
+                          color: _jenisPesanan == 'dine_in'
+                              ? AppColors.forestGreen
+                              : AppColors.border,
+                        ),
+                      ),
+                      ChoiceChip(
+                        avatar: const Icon(
+                          Icons.takeout_dining_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Takeaway'),
+                        selected: _jenisPesanan == 'takeaway',
+                        onSelected: (_) {
+                          setState(() => _jenisPesanan = 'takeaway');
+                        },
+                        showCheckmark: false,
+                        selectedColor: Colors.lightBlue.withValues(alpha: 0.13),
+                        backgroundColor: AppColors.surface,
+                        side: BorderSide(
+                          color: _jenisPesanan == 'takeaway'
+                              ? Colors.lightBlue
+                              : AppColors.border,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (_jenisPesanan == 'dine_in')
+                    _Field(
+                      controller: _mejaC,
+                      label: 'Nomor Meja (opsional)',
+                      hint: 'misal: 3',
+                      icon: Icons.table_restaurant_rounded,
+                    ),
                   const SizedBox(height: 14),
 
                   const Align(

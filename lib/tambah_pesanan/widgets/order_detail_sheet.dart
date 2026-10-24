@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,6 +22,59 @@ class OrderDetailSheet extends StatelessWidget {
   String _rupiah(int angka) => angka
       .toString()
       .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+
+  void _notifikasi(
+    BuildContext context, {
+    required String pesan,
+    bool sukses = true,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              sukses
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.error_outline_rounded,
+              color: sukses
+                  ? const Color(0xFF347A45)
+                  : const Color(0xFFB64D4D),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                pesan,
+                style: TextStyle(
+                  color: sukses
+                      ? const Color(0xFF285B3A)
+                      : const Color(0xFF963D3D),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: sukses
+            ? const Color(0xFFF0F8F1)
+            : const Color(0xFFFFF2F2),
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: sukses
+                ? const Color(0xFFB8DCC0)
+                : const Color(0xFFE8B8B8),
+            width: 1,
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _hapus(BuildContext context) async {
     final konfirmasi = await showDialog<bool>(
@@ -60,9 +112,28 @@ class OrderDetailSheet extends StatelessWidget {
       await provider.hapusPesanan(order.id);
 
       if (navigator.mounted) navigator.pop();
-    } catch (error) {
+
+      messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
-        SnackBar(content: Text('Gagal menghapus pesanan: $error')),
+        SnackBar(
+          content: const Text(
+            'Pesanan berhasil dihapus.',
+            style: TextStyle(color: Color(0xFF285B3A)),
+          ),
+          backgroundColor: const Color(0xFFF0F8F1),
+          behavior: SnackBarBehavior.floating,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFFB8DCC0)),
+          ),
+        ),
+      );
+    } catch (error) {
+      _notifikasi(
+        context,
+        pesan: 'Gagal menghapus pesanan: $error',
+        sukses: false,
       );
     }
   }
@@ -72,7 +143,6 @@ class OrderDetailSheet extends StatelessWidget {
     bool sudahDiantar,
   ) async {
     final provider = context.read<OrderProvider>();
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       await provider.updateStatusPengantaran(
@@ -80,20 +150,21 @@ class OrderDetailSheet extends StatelessWidget {
         sudahDiantar: sudahDiantar,
       );
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            sudahDiantar
-                ? 'Pesanan ditandai sudah diantar.'
-                : 'Status pengantaran dikembalikan.',
-          ),
-        ),
+      if (!context.mounted) return;
+
+      _notifikasi(
+        context,
+        pesan: sudahDiantar
+            ? 'Pesanan berhasil ditandai sudah diantar.'
+            : 'Status pengantaran berhasil dikembalikan.',
       );
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui pengantaran: $error'),
-        ),
+      if (!context.mounted) return;
+
+      _notifikasi(
+        context,
+        pesan: 'Gagal memperbarui pengantaran: $error',
+        sukses: false,
       );
     }
   }
@@ -103,7 +174,6 @@ class OrderDetailSheet extends StatelessWidget {
     bool sudahDibayar,
   ) async {
     final provider = context.read<OrderProvider>();
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       await provider.updateStatusPembayaran(
@@ -111,20 +181,21 @@ class OrderDetailSheet extends StatelessWidget {
         sudahDibayar: sudahDibayar,
       );
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            sudahDibayar
-                ? 'Pembayaran ditandai sudah diterima.'
-                : 'Status pembayaran dikembalikan.',
-          ),
-        ),
+      if (!context.mounted) return;
+
+      _notifikasi(
+        context,
+        pesan: sudahDibayar
+            ? 'Pembayaran berhasil ditandai sudah diterima.'
+            : 'Status pembayaran berhasil dikembalikan.',
       );
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui pembayaran: $error'),
-        ),
+      if (!context.mounted) return;
+
+      _notifikasi(
+        context,
+        pesan: 'Gagal memperbarui pembayaran: $error',
+        sukses: false,
       );
     }
   }
@@ -171,8 +242,26 @@ class OrderDetailSheet extends StatelessWidget {
                   IconButton(
                     tooltip: 'Cetak struk',
                     icon: const Icon(Icons.print_outlined),
-                    onPressed: () =>
-                        ReceiptService.cetakStruk(currentOrder),
+                    onPressed: () async {
+                      try {
+                        await ReceiptService.cetakStruk(currentOrder);
+
+                        if (!context.mounted) return;
+
+                        _notifikasi(
+                          context,
+                          pesan: 'Proses cetak struk selesai.',
+                        );
+                      } catch (error) {
+                        if (!context.mounted) return;
+
+                        _notifikasi(
+                          context,
+                          pesan: 'Gagal mencetak struk: $error',
+                          sukses: false,
+                        );
+                      }
+                    },
                   ),
                   IconButton(
                     tooltip: 'Hapus pesanan',
@@ -183,6 +272,7 @@ class OrderDetailSheet extends StatelessWidget {
                     onPressed: () => _hapus(context),
                   ),
                   IconButton(
+                    tooltip: 'Tutup',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -195,7 +285,9 @@ class OrderDetailSheet extends StatelessWidget {
               ),
               if (currentOrder.jenisPesanan != 'takeaway')
                 Text('Meja: ${currentOrder.meja ?? '-'}'),
-              Text('Sumber: ${currentOrder.sumberPesanan == 'qr' ? 'QR pelanggan' : 'Kasir'}'),
+              Text(
+                'Sumber: ${currentOrder.sumberPesanan == 'qr' ? 'QR pelanggan' : 'Kasir'}',
+              ),
               Text('Kasir: ${currentOrder.kasir ?? '-'}'),
               Text(
                 'Metode pembayaran: '
@@ -210,8 +302,7 @@ class OrderDetailSheet extends StatelessWidget {
                   sudahDibayar ? 'Sudah dibayar' : 'Belum dibayar',
                 ),
                 value: sudahDibayar,
-                onChanged: (value) =>
-                    _ubahPembayaran(context, value),
+                onChanged: (value) => _ubahPembayaran(context, value),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -220,51 +311,85 @@ class OrderDetailSheet extends StatelessWidget {
                   sudahDiantar ? 'Sudah diantar' : 'Belum diantar',
                 ),
                 value: sudahDiantar,
-                onChanged: (value) =>
-                    _ubahPengantaran(context, value),
+                onChanged: (value) => _ubahPengantaran(context, value),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Detail item',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: currentOrder.items.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 16),
+                  itemBuilder: (context, index) {
+                    final item = currentOrder.items[index];
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.namaMenu,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${item.jumlah} × Rp${_rupiah(item.hargaSatuan)}',
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if ((item.catatan ?? '').trim().isNotEmpty)
+                                Text(
+                                  'Catatan: ${item.catatan}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Rp${_rupiah(item.subtotal)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
               const Divider(height: 24),
-              if (currentOrder.items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('(tidak ada rincian item)'),
-                )
-              else
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: currentOrder.items.length,
-                    itemBuilder: (_, index) {
-                      final item = currentOrder.items[index];
-
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text(
-                          '${item.jumlah}x ${item.namaMenu}',
-                        ),
-                        subtitle: (item.catatan == null ||
-                                item.catatan!.isEmpty)
-                            ? null
-                            : Text(item.catatan!),
-                        trailing: Text(
-                          'Rp${_rupiah(item.subtotal)}',
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              const Divider(),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Total',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const Expanded(
+                    child: Text(
+                      'Total',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   Text(
                     'Rp${_rupiah(currentOrder.totalHarga)}',
                     style: const TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

@@ -175,14 +175,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     provider.setKasir(_kasirController.text);
     provider.setNamaPelanggan(_namaController.text);
-    provider.setMeja(_mejaController.text);
+    provider.setMeja(
+      provider.jenisPesanan == 'takeaway' ? '' : _mejaController.text,
+    );
     provider.setMetodePembayaran(_metodePembayaran);
 
     final pesanan = await provider.simpanPesanan();
     if (!mounted) return;
     if (pesanan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.pesanError ?? 'Gagal menyimpan pesanan')),
+        SnackBar(
+            content: Text(provider.pesanError ?? 'Gagal menyimpan pesanan')),
       );
       return;
     }
@@ -198,7 +201,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _mejaController.clear();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Pesanan tersimpan • ${_formatRupiah(pesanan.totalHarga)}'),
+        content:
+            Text('Pesanan tersimpan • ${_formatRupiah(pesanan.totalHarga)}'),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
           label: 'Cetak struk',
@@ -276,7 +280,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         floatingActionButton: wideScreen
             ? null
             : Consumer<OrderProvider>(
-                builder: (context, provider, _) => FloatingActionButton.extended(
+                builder: (context, provider, _) =>
+                    FloatingActionButton.extended(
                   onPressed: _openCartSheet,
                   icon: const Icon(Icons.shopping_bag_outlined),
                   label: Text(
@@ -367,7 +372,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 14),
               Text(
                 'Kategori',
-                style: AppTextStyles.displaySmall.copyWith(color: scheme.onSurface),
+                style: AppTextStyles.displaySmall
+                    .copyWith(color: scheme.onSurface),
               ),
               const SizedBox(height: 9),
               SizedBox(
@@ -388,7 +394,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           label: category,
                           icon: _iconForCategory(category),
                           selected: _selectedCategory == category,
-                          onTap: () => setState(() => _selectedCategory = category),
+                          onTap: () =>
+                              setState(() => _selectedCategory = category),
                         ),
                       ),
                   ],
@@ -396,56 +403,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _SectionHeading(
-                    title: 'Menu hari ini',
-                    subtitle: 'Pilih menu dan atur ketersediaannya',
-                    trailing: TextButton.icon(
-                      onPressed: () => context.go('/menu'),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                      label: const Text('Kelola menu'),
+            _SectionHeading(
+              title: 'Menu hari ini',
+              subtitle: 'Pilih menu dan atur ketersediaannya',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Tampilan grid',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _gridView = true),
+                    style: IconButton.styleFrom(
+                      backgroundColor: _gridView
+                          ? scheme.primary.withOpacity(0.12)
+                          : Colors.transparent,
+                      foregroundColor:
+                          _gridView ? scheme.primary : scheme.onSurfaceVariant,
                     ),
+                    icon: const Icon(Icons.grid_view_rounded),
                   ),
-                ),
-              ],
+                  IconButton(
+                    tooltip: 'Tampilan list',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _gridView = false),
+                    style: IconButton.styleFrom(
+                      backgroundColor: !_gridView
+                          ? scheme.primary.withOpacity(0.12)
+                          : Colors.transparent,
+                      foregroundColor:
+                          !_gridView ? scheme.primary : scheme.onSurfaceVariant,
+                    ),
+                    icon: const Icon(Icons.view_list_rounded),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: 'Tampilan grid',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(() => _gridView = true),
-                  style: IconButton.styleFrom(
-                    backgroundColor: _gridView
-                        ? scheme.primary.withOpacity(0.12)
-                        : Colors.transparent,
-                    foregroundColor: _gridView
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant,
-                  ),
-                  icon: const Icon(Icons.grid_view_rounded),
-                ),
-                IconButton(
-                  tooltip: 'Tampilan list',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(() => _gridView = false),
-                  style: IconButton.styleFrom(
-                    backgroundColor: !_gridView
-                        ? scheme.primary.withOpacity(0.12)
-                        : Colors.transparent,
-                    foregroundColor: !_gridView
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant,
-                  ),
-                  icon: const Icon(Icons.view_list_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             if (provider.isLoading && provider.items.isEmpty)
               const _LoadingPanel(label: 'Memuat menu...')
             else if (provider.error != null && provider.items.isEmpty)
@@ -535,14 +528,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       '${provider.jumlahItemKeranjang} item',
-                      style: AppTextStyles.label.copyWith(color: scheme.onPrimaryContainer),
+                      style: AppTextStyles.label
+                          .copyWith(color: scheme.onPrimaryContainer),
                     ),
                   ),
                 ],
@@ -561,34 +556,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 hint: 'Nama pelanggan',
                 icon: Icons.person_outline_rounded,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    selectedBackgroundColor: scheme.primaryContainer,
+                    selectedForegroundColor: scheme.onPrimaryContainer,
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: 'dine_in',
+                      icon: Icon(Icons.table_restaurant_rounded, size: 18),
+                      label: Text('Dine-in'),
+                    ),
+                    ButtonSegment(
+                      value: 'takeaway',
+                      icon: Icon(Icons.takeout_dining_rounded, size: 18),
+                      label: Text('Take away'),
+                    ),
+                  ],
+                  selected: {provider.jenisPesanan},
+                  onSelectionChanged: (selection) {
+                    final value = selection.first;
+                    if (value == 'takeaway') _mejaController.clear();
+                    provider.setJenisPesanan(value);
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(
-                    child: _CartTextField(
-                      controller: _mejaController,
-                      label: 'Meja',
-                      hint: 'No. meja',
-                      icon: Icons.table_restaurant_outlined,
+                  if (provider.jenisPesanan == 'dine_in') ...[
+                    Expanded(
+                      child: _CartTextField(
+                        controller: _mejaController,
+                        label: 'Meja',
+                        hint: 'No. meja',
+                        icon: Icons.table_restaurant_outlined,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      key: const ValueKey('dropdown_pembayaran'),
                       initialValue: _metodePembayaran,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Pembayaran',
                         prefixIcon: Icon(Icons.payments_outlined),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                       ),
                       items: const [
                         DropdownMenuItem(value: 'cash', child: Text('Cash')),
                         DropdownMenuItem(value: 'qris', child: Text('QRIS')),
-                        DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
+                        DropdownMenuItem(
+                            value: 'transfer', child: Text('Transfer')),
                       ],
                       onChanged: (value) {
-                        if (value != null) setState(() => _metodePembayaran = value);
+                        if (value != null)
+                          setState(() => _metodePembayaran = value);
                       },
                     ),
                   ),
@@ -598,7 +629,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Row(
                 children: [
                   const Expanded(
-                    child: Text('Daftar pesanan', style: AppTextStyles.titleMedium),
+                    child: Text('Daftar pesanan',
+                        style: AppTextStyles.titleMedium),
                   ),
                   if (cart.isNotEmpty)
                     TextButton(
@@ -610,17 +642,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (cart.isEmpty)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerHighest.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.shopping_basket_outlined, size: 28, color: scheme.onSurfaceVariant),
+                      Icon(Icons.shopping_basket_outlined,
+                          size: 28, color: scheme.onSurfaceVariant),
                       const SizedBox(height: 5),
-                      Text('Belum ada menu dipilih', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
-                      Text('Tekan tombol + pada menu untuk menambahkan.', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant), textAlign: TextAlign.center),
+                      Text('Belum ada menu dipilih',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: scheme.onSurfaceVariant)),
+                      Text('Tekan tombol + pada menu untuk menambahkan.',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: scheme.onSurfaceVariant),
+                          textAlign: TextAlign.center),
                     ],
                   ),
                 )
@@ -631,7 +670,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     shrinkWrap: true,
                     physics: const ClampingScrollPhysics(),
                     itemCount: cart.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: scheme.outlineVariant),
+                    separatorBuilder: (_, __) =>
+                        Divider(height: 1, color: scheme.outlineVariant),
                     itemBuilder: (context, index) {
                       final item = cart[index];
                       return Padding(
@@ -643,25 +683,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(item.namaMenu, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleSmall),
+                                  Text(item.namaMenu,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTextStyles.titleSmall),
                                   const SizedBox(height: 2),
-                                  Text('${_formatRupiah(item.hargaSatuan)} × ${item.jumlah}', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                                  Text(
+                                      '${_formatRupiah(item.hargaSatuan)} × ${item.jumlah}',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                          color: scheme.onSurfaceVariant)),
                                   if (item.catatan?.isNotEmpty == true)
-                                    Text('Catatan: ${item.catatan}', style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                                    Text('Catatan: ${item.catatan}',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                            color: scheme.onSurfaceVariant)),
                                 ],
                               ),
                             ),
                             IconButton(
                               tooltip: 'Kurangi jumlah',
                               visualDensity: VisualDensity.compact,
-                              onPressed: () => provider.ubahJumlah(item.menuItemId, -1),
-                              icon: const Icon(Icons.remove_circle_outline_rounded),
+                              onPressed: () =>
+                                  provider.ubahJumlah(item.menuItemId, -1),
+                              icon: const Icon(
+                                  Icons.remove_circle_outline_rounded),
                             ),
-                            Text('${item.jumlah}', style: AppTextStyles.titleSmall),
+                            Text('${item.jumlah}',
+                                style: AppTextStyles.titleSmall),
                             IconButton(
                               tooltip: 'Tambah jumlah',
                               visualDensity: VisualDensity.compact,
-                              onPressed: () => provider.ubahJumlah(item.menuItemId, 1),
+                              onPressed: () =>
+                                  provider.ubahJumlah(item.menuItemId, 1),
                               icon: const Icon(Icons.add_circle_rounded),
                             ),
                           ],
@@ -673,8 +725,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Expanded(child: Text('Total', style: AppTextStyles.titleMedium)),
-                  Text(_formatRupiah(provider.totalKeranjang), style: AppTextStyles.priceLarge),
+                  const Expanded(
+                      child: Text('Total', style: AppTextStyles.titleMedium)),
+                  Text(_formatRupiah(provider.totalKeranjang),
+                      style: AppTextStyles.priceLarge),
                 ],
               ),
               const SizedBox(height: 12),
@@ -685,9 +739,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ? null
                       : () => _checkout(closeSheet: inSheet),
                   icon: provider.isSubmitting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.point_of_sale_rounded),
-                  label: Text(provider.isSubmitting ? 'Menyimpan...' : 'Checkout & Simpan Pesanan'),
+                  label: Text(provider.isSubmitting
+                      ? 'Menyimpan...'
+                      : 'Checkout & Simpan Pesanan'),
                 ),
               ),
             ],
@@ -702,18 +761,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Consumer<OrderProvider>(
       builder: (context, provider, _) {
         final now = DateTime.now();
-        final orders = provider.orders.where((order) {
-          final created = order.createdAt.toLocal();
-          return created.year == now.year &&
-              created.month == now.month &&
-              created.day == now.day;
-        }).take(6).toList();
+        final orders = provider.orders
+            .where((order) {
+              final created = order.createdAt.toLocal();
+              return created.year == now.year &&
+                  created.month == now.month &&
+                  created.day == now.day;
+            })
+            .take(6)
+            .toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionHeading(
               title: 'Pesanan Hari Ini',
-              subtitle: '${provider.ringkasanJumlahPesanan} pesanan • ${_formatRupiah(provider.ringkasanTotalPendapatan)}',
+              subtitle:
+                  '${provider.ringkasanJumlahPesanan} pesanan • ${_formatRupiah(provider.ringkasanTotalPendapatan)}',
               trailing: TextButton(
                 onPressed: () => context.go('/riwayat'),
                 child: const Text('Lihat semua'),
@@ -757,12 +820,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.tips_and_updates_outlined, color: scheme.secondary),
+                  Icon(Icons.tips_and_updates_outlined,
+                      color: scheme.secondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Tips: tekan lama pesanan untuk menghapusnya.',
-                      style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant),
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -775,13 +840,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-
 class _SectionHeading extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? trailing;
 
-  const _SectionHeading({required this.title, required this.subtitle, this.trailing});
+  const _SectionHeading(
+      {required this.title, required this.subtitle, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -793,9 +858,13 @@ class _SectionHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: AppTextStyles.displaySmall.copyWith(color: scheme.onSurface)),
+              Text(title,
+                  style: AppTextStyles.displaySmall
+                      .copyWith(color: scheme.onSurface)),
               const SizedBox(height: 3),
-              Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+              Text(subtitle,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: scheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -954,19 +1023,22 @@ class _MenuPreviewCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: item.gambarUrl != null && item.gambarUrl!.trim().isNotEmpty
+                    child: item.gambarUrl != null &&
+                            item.gambarUrl!.trim().isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.network(
                               item.gambarUrl!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Center(
-                                child: Icon(itemIcon, size: 34, color: scheme.primary),
+                                child: Icon(itemIcon,
+                                    size: 34, color: scheme.primary),
                               ),
                             ),
                           )
                         : Center(
-                            child: Icon(itemIcon, size: 34, color: scheme.primary),
+                            child:
+                                Icon(itemIcon, size: 34, color: scheme.primary),
                           ),
                   ),
                   Positioned(
@@ -978,9 +1050,12 @@ class _MenuPreviewCard extends StatelessWidget {
                         onTap: onToggle,
                         borderRadius: BorderRadius.circular(6),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 4),
                           decoration: BoxDecoration(
-                            color: available ? scheme.tertiaryContainer : scheme.errorContainer,
+                            color: available
+                                ? scheme.tertiaryContainer
+                                : scheme.errorContainer,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -988,7 +1063,9 @@ class _MenuPreviewCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
-                              color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
+                              color: available
+                                  ? scheme.onTertiaryContainer
+                                  : scheme.onErrorContainer,
                             ),
                           ),
                         ),
@@ -1000,13 +1077,24 @@ class _MenuPreviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 7),
-          Text(item.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface)),
-          Text(item.kategori, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant, fontSize: 10)),
+          Text(item.nama,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  AppTextStyles.titleSmall.copyWith(color: scheme.onSurface)),
+          Text(item.kategori,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: scheme.onSurfaceVariant, fontSize: 10)),
           const SizedBox(height: 5),
           Row(
             children: [
               Expanded(
-                child: Text(_formatRupiah(item.harga), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.price.copyWith(fontSize: 12)),
+                child: Text(_formatRupiah(item.harga),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.price.copyWith(fontSize: 12)),
               ),
               _SmallActionButton(
                 tooltip: 'Tambah ke pesanan',
@@ -1050,9 +1138,16 @@ class _MenuListRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.titleSmall),
+                Text(item.nama,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.titleSmall),
                 const SizedBox(height: 2),
-                Text(item.kategori, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant)),
+                Text(item.kategori,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: scheme.onSurfaceVariant)),
                 const SizedBox(height: 3),
                 Text(_formatRupiah(item.harga), style: AppTextStyles.price),
               ],
@@ -1065,7 +1160,9 @@ class _MenuListRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
               decoration: BoxDecoration(
-                color: available ? scheme.tertiaryContainer : scheme.errorContainer,
+                color: available
+                    ? scheme.tertiaryContainer
+                    : scheme.errorContainer,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -1073,7 +1170,9 @@ class _MenuListRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  color: available ? scheme.onTertiaryContainer : scheme.onErrorContainer,
+                  color: available
+                      ? scheme.onTertiaryContainer
+                      : scheme.onErrorContainer,
                 ),
               ),
             ),
@@ -1119,8 +1218,10 @@ class _SmallActionButton extends StatelessWidget {
           style: IconButton.styleFrom(
             backgroundColor: color,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            disabledForegroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            disabledBackgroundColor:
+                Theme.of(context).colorScheme.surfaceContainerHighest,
+            disabledForegroundColor:
+                Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           icon: Icon(icon, size: 17),
         ),
@@ -1152,7 +1253,8 @@ class _CartTextField extends StatelessWidget {
         hintText: hint,
         prefixIcon: Icon(icon, size: 19),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       ),
     );
   }
@@ -1162,7 +1264,8 @@ class _RecentOrderCard extends StatefulWidget {
   final Order order;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
-  const _RecentOrderCard({required this.order, required this.onTap, required this.onLongPress});
+  const _RecentOrderCard(
+      {required this.order, required this.onTap, required this.onLongPress});
 
   @override
   State<_RecentOrderCard> createState() => _RecentOrderCardState();
@@ -1188,7 +1291,10 @@ class _RecentOrderCardState extends State<_RecentOrderCard> {
         decoration: BoxDecoration(
           color: scheme.surface,
           borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: _hovered ? scheme.primary.withOpacity(0.45) : scheme.outlineVariant),
+          border: Border.all(
+              color: _hovered
+                  ? scheme.primary.withOpacity(0.45)
+                  : scheme.outlineVariant),
         ),
         child: InkWell(
           onTap: widget.onTap,
@@ -1205,23 +1311,29 @@ class _RecentOrderCardState extends State<_RecentOrderCard> {
                     color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.receipt_long_rounded, color: scheme.primary, size: 20),
+                  child: Icon(Icons.receipt_long_rounded,
+                      color: scheme.primary, size: 20),
                 ),
                 const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface)),
+                      Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.titleSmall
+                              .copyWith(color: scheme.onSurface)),
                       const SizedBox(height: 3),
                       Text(
                         '${order.items.length} item • ${_formatTime(order.createdAt)}',
-                        style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant),
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: scheme.onSurfaceVariant),
                       ),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.13),
                           borderRadius: BorderRadius.circular(20),
@@ -1287,9 +1399,14 @@ class _LoadingPanel extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2)),
           const SizedBox(width: 12),
-          Text(label, style: AppTextStyles.bodyMedium.copyWith(color: scheme.onSurfaceVariant)),
+          Text(label,
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: scheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -1326,13 +1443,18 @@ class _MessagePanel extends StatelessWidget {
         children: [
           Icon(icon, size: 27, color: scheme.onSurfaceVariant),
           const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center,
-              style: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface)),
+          Text(message,
+              textAlign: TextAlign.center,
+              style:
+                  AppTextStyles.titleSmall.copyWith(color: scheme.onSurface)),
           if (detail != null) ...[
             const SizedBox(height: 5),
-            Text(detail!, textAlign: TextAlign.center,
-                style: AppTextStyles.bodySmall.copyWith(color: scheme.onSurfaceVariant),
-                maxLines: 3, overflow: TextOverflow.ellipsis),
+            Text(detail!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: scheme.onSurfaceVariant),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis),
           ],
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 10),
