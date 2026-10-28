@@ -1,13 +1,12 @@
+
 import 'package:flutter/material.dart';
 
-/// Tipografi bersama untuk aplikasi Kasir Sapuangin.
-/// Warna sengaja diwariskan dari ThemeData agar teks tidak terkunci ke
-/// warna mode terang ketika aplikasi memakai mode gelap.
 class AppTextStyles {
   AppTextStyles._();
 
   static const String _fontJudul = 'Fraunces';
 
+  // Heading
   static const TextStyle displayLarge = TextStyle(
     fontFamily: _fontJudul,
     fontSize: 32,
@@ -29,6 +28,7 @@ class AppTextStyles {
     height: 1.25,
   );
 
+  // Title
   static const TextStyle titleLarge = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.w700,
@@ -47,6 +47,7 @@ class AppTextStyles {
     height: 1.3,
   );
 
+  // Body
   static const TextStyle bodyLarge = TextStyle(
     fontSize: 16,
     height: 1.45,
@@ -62,24 +63,26 @@ class AppTextStyles {
     height: 1.4,
   );
 
+  // Price
   static const TextStyle price = TextStyle(
+    fontFamily: _fontJudul,
     fontSize: 14,
     fontWeight: FontWeight.w700,
-    fontFamily: _fontJudul,
   );
 
   static const TextStyle priceLarge = TextStyle(
+    fontFamily: _fontJudul,
     fontSize: 22,
     fontWeight: FontWeight.w800,
-    fontFamily: _fontJudul,
   );
 
   static const TextStyle priceSmall = TextStyle(
+    fontFamily: _fontJudul,
     fontSize: 12,
     fontWeight: FontWeight.w700,
-    fontFamily: _fontJudul,
   );
 
+  // Buttons and labels
   static const TextStyle button = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w700,

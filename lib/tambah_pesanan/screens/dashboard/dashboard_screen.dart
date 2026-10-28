@@ -415,7 +415,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onPressed: () => setState(() => _gridView = true),
                     style: IconButton.styleFrom(
                       backgroundColor: _gridView
-                          ? scheme.primary.withOpacity(0.12)
+                          ? scheme.primary.withValues(alpha: 0.12)
                           : Colors.transparent,
                       foregroundColor:
                           _gridView ? scheme.primary : scheme.onSurfaceVariant,
@@ -428,7 +428,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onPressed: () => setState(() => _gridView = false),
                     style: IconButton.styleFrom(
                       backgroundColor: !_gridView
-                          ? scheme.primary.withOpacity(0.12)
+                          ? scheme.primary.withValues(alpha: 0.12)
                           : Colors.transparent,
                       foregroundColor:
                           !_gridView ? scheme.primary : scheme.onSurfaceVariant,
@@ -618,8 +618,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             value: 'transfer', child: Text('Transfer')),
                       ],
                       onChanged: (value) {
-                        if (value != null)
+                        if (value != null) {
                           setState(() => _metodePembayaran = value);
+                        }
                       },
                     ),
                   ),
@@ -645,7 +646,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding:
                       const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
                   decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest.withOpacity(0.5),
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -814,7 +815,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest.withOpacity(0.65),
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: scheme.outlineVariant),
               ),
@@ -924,7 +925,7 @@ class _CategoryChipState extends State<_CategoryChip> {
     final selected = widget.selected;
     final background = selected
         ? scheme.primary
-        : (_hovered ? scheme.primary.withOpacity(0.08) : scheme.surface);
+        : (_hovered ? scheme.primary.withValues(alpha: 0.08) : scheme.surface);
     final foreground = selected ? scheme.onPrimary : scheme.primary;
 
     return MouseRegion(
@@ -944,7 +945,7 @@ class _CategoryChipState extends State<_CategoryChip> {
           boxShadow: _hovered && !selected
               ? [
                   BoxShadow(
-                    color: scheme.primary.withOpacity(0.08),
+                    color: scheme.primary.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -1293,7 +1294,7 @@ class _RecentOrderCardState extends State<_RecentOrderCard> {
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
               color: _hovered
-                  ? scheme.primary.withOpacity(0.45)
+                  ? scheme.primary.withValues(alpha: 0.45)
                   : scheme.outlineVariant),
         ),
         child: InkWell(
@@ -1335,7 +1336,7 @@ class _RecentOrderCardState extends State<_RecentOrderCard> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.13),
+                          color: statusColor.withValues(alpha: 0.13),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(

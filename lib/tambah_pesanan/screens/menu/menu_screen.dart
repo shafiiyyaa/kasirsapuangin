@@ -208,7 +208,7 @@ class _MenuScreenState extends State<MenuScreen> {
                       onPressed: () => setState(() => _gridView = true),
                       style: IconButton.styleFrom(
                         backgroundColor: _gridView
-                            ? scheme.primary.withOpacity(0.12)
+                            ? scheme.primary.withValues(alpha: 0.12)
                             : Colors.transparent,
                         foregroundColor: _gridView
                             ? scheme.primary
@@ -222,7 +222,7 @@ class _MenuScreenState extends State<MenuScreen> {
                       onPressed: () => setState(() => _gridView = false),
                       style: IconButton.styleFrom(
                         backgroundColor: !_gridView
-                            ? scheme.primary.withOpacity(0.12)
+                            ? scheme.primary.withValues(alpha: 0.12)
                             : Colors.transparent,
                         foregroundColor: !_gridView
                             ? scheme.primary
@@ -342,7 +342,7 @@ class _CategoryTileState extends State<_CategoryTile> {
     final scheme = Theme.of(context).colorScheme;
     final background = widget.selected
         ? scheme.primary
-        : (_hovered ? scheme.primary.withOpacity(0.08) : scheme.surface);
+        : (_hovered ? scheme.primary.withValues(alpha: 0.08) : scheme.surface);
     final foreground = widget.selected ? scheme.onPrimary : scheme.primary;
 
     return MouseRegion(
