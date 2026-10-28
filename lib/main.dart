@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +13,7 @@ import 'menu_board/providers/theme_provider.dart';
 import 'theme/app_theme.dart';
 
 import 'tambah_pesanan/widgets/app_scaffold.dart';
+import 'tambah_pesanan/screens/login/login_screen.dart';
 import 'tambah_pesanan/screens/dashboard/dashboard_screen.dart';
 import 'tambah_pesanan/screens/menu/menu_screen.dart';
 import 'tambah_pesanan/screens/order/add_order_screen.dart';
@@ -53,16 +56,44 @@ class KasirSapuanginApp extends StatefulWidget {
 }
 
 class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
+  StreamSubscription<AuthState>? _authSub;
+
   @override
   void initState() {
     super.initState();
+
+    // Setiap kali kasir BERHASIL login, muat ulang data yang butuh akses kasir.
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
+        _muatDataKasir();
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+
+      // Menu boleh dibaca siapa saja.
       context.read<MenuProvider>().loadMenu();
-      context.read<OrderProvider>().loadOrders();
-      context.read<OrderProvider>().loadRingkasanHariIni();
-      context.read<PengeluaranProvider>().loadPengeluaran();
+
+      // Pesanan & pengeluaran hanya untuk kasir yang sudah login
+      // (misalnya aplikasi dibuka lagi dan sesi login masih tersimpan).
+      if (Supabase.instance.client.auth.currentSession != null) {
+        _muatDataKasir();
+      }
     });
+  }
+
+  void _muatDataKasir() {
+    if (!mounted) return;
+    context.read<OrderProvider>().loadOrders();
+    context.read<OrderProvider>().loadRingkasanHariIni();
+    context.read<PengeluaranProvider>().loadPengeluaran();
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -82,9 +113,43 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
   }
 }
 
+/// Memberi tahu router setiap kali status login berubah (login / logout),
+/// supaya halaman otomatis pindah ke /login atau ke dashboard.
+class _AuthNotifier extends ChangeNotifier {
+  _AuthNotifier() {
+    _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      notifyListeners();
+    });
+  }
+
+  late final StreamSubscription<AuthState> _sub;
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
+final _AuthNotifier _authNotifier = _AuthNotifier();
+
 final GoRouter _router = GoRouter(
   initialLocation: '/',
+  refreshListenable: _authNotifier,
+  redirect: (context, state) {
+    final sudahLogin = Supabase.instance.client.auth.currentSession != null;
+    final diHalamanLogin = state.matchedLocation == '/login';
+
+    if (!sudahLogin && !diHalamanLogin) return '/login';
+    if (sudahLogin && diHalamanLogin) return '/';
+    return null;
+  },
   routes: [
+    GoRoute(
+      path: '/login',
+      name: 'login',
+      builder: (context, state) => const LoginScreen(),
+    ),
     GoRoute(
       path: '/',
       name: 'dashboard',

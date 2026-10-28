@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_scaffold.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../menu_board/providers/theme_provider.dart';
 
 // PENTING: samain 2 import di bawah ini dengan path theme yang dipake
@@ -122,6 +123,25 @@ class PengaturanScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          // ===== akun =====
+          _judul('AKUN'),
+          _kartu(
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              leading: _ikon(Icons.logout),
+              title: const Text('Keluar',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              subtitle: Text(
+                Supabase.instance.client.auth.currentUser?.email ??
+                    'Belum masuk',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              onTap: () => _konfirmasiKeluar(context),
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // ===== tentang =====
           _judul('TENTANG'),
           _kartu(
@@ -153,6 +173,31 @@ class PengaturanScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _konfirmasiKeluar(BuildContext context) async {
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Keluar dari akun?'),
+        content: const Text(
+            'Kamu perlu masuk lagi untuk melihat pesanan dan mengelola menu.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+
+    if (yakin == true) {
+      await Supabase.instance.client.auth.signOut();
+    }
   }
 
   Widget _judul(String teks) => Padding(
