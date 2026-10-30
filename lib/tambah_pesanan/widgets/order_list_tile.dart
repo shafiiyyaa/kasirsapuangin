@@ -1,8 +1,8 @@
-
 import 'package:flutter/material.dart';
 
 import '../../menu_board/models/order.dart';
 import '../../theme/app_theme.dart';
+import 'order_status.dart';
 
 class OrderListTile extends StatelessWidget {
   final Order order;
@@ -13,19 +13,6 @@ class OrderListTile extends StatelessWidget {
     required this.order,
     this.onTap,
   });
-
-  Color _statusColor() {
-    switch (order.status) {
-      case OrderStatus.baru:
-        return AppColors.statusBaru;
-      case OrderStatus.diproses:
-        return AppColors.statusDiproses;
-      case OrderStatus.selesai:
-        return AppColors.statusSelesai;
-      case OrderStatus.batal:
-        return AppColors.statusBatal;
-    }
-  }
 
   String _jenisPesananLabel() {
     return order.jenisPesanan == 'takeaway'
@@ -45,6 +32,7 @@ class OrderListTile extends StatelessWidget {
             : 'Pelanggan';
 
     final sumber = order.sumberPesanan == 'qr' ? 'QR' : 'Kasir';
+    final sudahBayar = order.statusPembayaran == 'dibayar';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -72,11 +60,9 @@ class OrderListTile extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                order.statusPengantaran == 'sudah_diantar'
-                    ? 'Sudah diantar'
-                    : 'Belum diantar',
+                sudahBayar ? 'Sudah dibayar' : 'Belum dibayar',
                 style: AppTextStyles.bodySmall.copyWith(
-                  color: order.statusPengantaran == 'sudah_diantar'
+                  color: sudahBayar
                       ? Colors.green
                       : Colors.orange.shade800,
                 ),
@@ -93,23 +79,7 @@ class OrderListTile extends StatelessWidget {
               style: AppTextStyles.price,
             ),
             const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: _statusColor().withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                order.status.label,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: _statusColor(),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            StatusPill(order: order),
           ],
         ),
       ),
