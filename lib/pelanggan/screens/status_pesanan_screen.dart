@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../config_pelanggan.dart';
 import '../pelanggan_service.dart';
+import '../widgets/doodle_latar.dart';
 
 /// Halaman status pesanan. Diperbarui otomatis tiap 5 detik.
 class StatusPesananScreen extends StatefulWidget {
@@ -64,21 +65,27 @@ class _StatusPesananScreenState extends State<StatusPesananScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _tidakAda
-                ? _pesanTengah(
-                    Icons.search_off_rounded,
-                    'Pesanan tidak ditemukan.',
-                  )
-                : _status == null
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(child: DoodleLatar()),
+          SafeArea(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _tidakAda
                     ? _pesanTengah(
-                        Icons.wifi_off_rounded,
-                        _error ?? 'Tidak bisa memuat status pesanan.',
-                        bisaCobaLagi: true,
+                        Icons.search_off_rounded,
+                        'Pesanan tidak ditemukan.',
                       )
-                    : _isi(_status!),
+                    : _status == null
+                        ? _pesanTengah(
+                            Icons.wifi_off_rounded,
+                            _error ?? 'Tidak bisa memuat status pesanan.',
+                            bisaCobaLagi: true,
+                          )
+                        : _isi(_status!),
+          ),
+        ],
       ),
     );
   }
@@ -136,7 +143,18 @@ class _StatusPesananScreenState extends State<StatusPesananScreen> {
       padding: const EdgeInsets.all(20),
       children: [
         const SizedBox(height: 12),
-        Center(child: Icon(ikon, size: 64, color: warnaIkon)),
+        Center(
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(judul),
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 750),
+            curve: Curves.elasticOut,
+            builder: (context, nilai, child) {
+              return Transform.scale(scale: nilai, child: child);
+            },
+            child: Icon(ikon, size: 64, color: warnaIkon),
+          ),
+        ),
         const SizedBox(height: 12),
         Text(
           judul,

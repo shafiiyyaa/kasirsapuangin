@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +26,10 @@ import 'tambah_pesanan/screens/statistik/statistik_screen.dart';
 const String kSupabaseUrl = 'https://nbsemkswjlvnzwwlyhhg.supabase.co';
 const String kSupabasePublishableKey =
     'sb_publishable_K1QMR9WNPheN5IaWY4gMLQ_3uOw8p3l';
+
+/// Dipakai untuk menampilkan notifikasi pesanan baru di layar mana pun.
+final GlobalKey<ScaffoldMessengerState> _messengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +62,7 @@ class KasirSapuanginApp extends StatefulWidget {
 
 class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
   StreamSubscription<AuthState>? _authSub;
+  RealtimeChannel? _channelPesanan;
 
   @override
   void initState() {
@@ -66,6 +72,9 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.signedIn && data.session != null) {
         _muatDataKasir();
+        _mulaiPantauPesanan();
+      } else if (data.event == AuthChangeEvent.signedOut) {
+        _berhentiPantauPesanan();
       }
     });
 
@@ -79,6 +88,7 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
       // (misalnya aplikasi dibuka lagi dan sesi login masih tersimpan).
       if (Supabase.instance.client.auth.currentSession != null) {
         _muatDataKasir();
+        _mulaiPantauPesanan();
       }
     });
   }
@@ -90,8 +100,103 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
     context.read<PengeluaranProvider>().loadPengeluaran();
   }
 
+  /// Mulai mendengarkan pesanan baru secara real-time dari Supabase.
+  void _mulaiPantauPesanan() {
+    if (_channelPesanan != null) return;
+
+    _channelPesanan = Supabase.instance.client
+        .channel('pesanan-baru')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'orders',
+          callback: _pesananMasuk,
+        )
+        .subscribe((status, error) {
+      // Setiap (kembali) tersambung, muat ulang supaya tidak ada pesanan
+      // yang terlewat saat koneksi sempat putus.
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        _muatDataKasir();
+      }
+    });
+  }
+
+  Future<void> _berhentiPantauPesanan() async {
+    final channel = _channelPesanan;
+    _channelPesanan = null;
+    if (channel != null) {
+      await Supabase.instance.client.removeChannel(channel);
+    }
+  }
+
+  void _pesananMasuk(PostgresChangePayload payload) {
+    if (!mounted) return;
+
+    final data = payload.newRecord;
+
+    // Pesanan yang dibuat kasir sendiri sudah langsung tampil di aplikasi,
+    // jadi hanya pesanan dari QR pelanggan yang diproses di sini.
+    if (data['sumber_pesanan'] != 'qr') return;
+
+    context.read<OrderProvider>().loadOrders();
+    context.read<OrderProvider>().loadRingkasanHariIni();
+
+    // Bunyi + getar (tergantung perangkat).
+    SystemSound.play(SystemSoundType.alert);
+    HapticFeedback.heavyImpact();
+
+    final nama = (data['nama_pelanggan'] as String?)?.trim() ?? '';
+    final meja = (data['meja'] ?? '').toString().trim();
+    final keterangan = [
+      if (meja.isNotEmpty) 'Meja $meja' else 'Take away',
+      if (nama.isNotEmpty) nama,
+    ].join(' • ');
+
+    _messengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 12),
+          backgroundColor: AppColors.forestGreen,
+          content: Row(
+            children: [
+              const Icon(Icons.notifications_active_rounded,
+                  color: AppColors.textOnGreen),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pesanan baru dari QR',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textOnGreen,
+                      ),
+                    ),
+                    Text(
+                      keterangan,
+                      style: const TextStyle(color: AppColors.textOnGreen),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'LIHAT',
+            textColor: AppColors.goldSoft,
+            onPressed: () => _router.go('/'),
+          ),
+        ),
+      );
+  }
+
   @override
   void dispose() {
+    _berhentiPantauPesanan();
     _authSub?.cancel();
     super.dispose();
   }
@@ -106,6 +211,7 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
+          scaffoldMessengerKey: _messengerKey,
           routerConfig: _router,
         );
       },
