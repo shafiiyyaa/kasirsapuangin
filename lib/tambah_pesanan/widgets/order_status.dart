@@ -167,8 +167,6 @@ class StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final langkah = langkahDari(order);
     final warna = warnaLangkah(langkah);
-    final perluPerhatian =
-        order.sumberPesanan == 'qr' && langkah == LangkahPesanan.diterima;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
@@ -191,10 +189,6 @@ class StatusPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (perluPerhatian) ...[
-              TitikBerkedip(warna: warna),
-              const SizedBox(width: 6),
-            ],
             Icon(ikonLangkah(langkah), size: 13, color: warna),
             const SizedBox(width: 5),
             Text(
@@ -441,71 +435,6 @@ class _Titik extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Titik kecil yang berdenyut: tanda pesanan QR baru yang belum diurus kasir.
-class TitikBerkedip extends StatefulWidget {
-  final Color warna;
-
-  const TitikBerkedip({super.key, required this.warna});
-
-  @override
-  State<TitikBerkedip> createState() => _TitikBerkedipState();
-}
-
-class _TitikBerkedipState extends State<TitikBerkedip>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _denyut;
-
-  @override
-  void initState() {
-    super.initState();
-    _denyut = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _denyut.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _denyut,
-      builder: (context, _) {
-        final nilai = _denyut.value;
-        return SizedBox(
-          width: 14,
-          height: 14,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 8 + nilai * 6,
-                height: 8 + nilai * 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.warna.withValues(alpha: 0.35 * (1 - nilai)),
-                ),
-              ),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.warna,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

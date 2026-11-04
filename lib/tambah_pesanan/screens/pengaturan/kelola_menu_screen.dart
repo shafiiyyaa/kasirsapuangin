@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -346,6 +349,42 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
     );
   }
 
+  /// Foto kecil di daftar menu; kalau belum ada foto, tampil huruf awal.
+  Widget _fotoKecil(Map<String, dynamic> m, bool habis) {
+    final huruf = CircleAvatar(
+      radius: 23,
+      backgroundColor: habis
+          ? Colors.black12
+          : AppColors.forestGreen.withValues(alpha: 0.12),
+      child: Text(
+        _nama(m).isNotEmpty ? _nama(m)[0].toUpperCase() : '?',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: habis ? Colors.black38 : AppColors.forestGreen,
+        ),
+      ),
+    );
+
+    final url = (m['gambar_url'] ?? '').toString().trim();
+    if (url.isEmpty) return huruf;
+
+    return Opacity(
+      opacity: habis ? 0.5 : 1,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Center(child: huruf),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _tile(Map<String, dynamic> m) {
     final habis = !_tersedia(m);
     return Container(
@@ -359,18 +398,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
         onTap: () => _bukaForm(m),
         onLongPress: () => _hapusMenu(m),
         contentPadding: const EdgeInsets.fromLTRB(10, 2, 4, 2),
-        leading: CircleAvatar(
-          backgroundColor: habis
-              ? Colors.black12
-              : AppColors.forestGreen.withValues(alpha: 0.12),
-          child: Text(
-            _nama(m).isNotEmpty ? _nama(m)[0].toUpperCase() : '?',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: habis ? Colors.black38 : AppColors.forestGreen,
-            ),
-          ),
-        ),
+        leading: _fotoKecil(m, habis),
         title: Text(
           _nama(m),
           maxLines: 1,
@@ -437,6 +465,12 @@ class _FormMenuState extends State<_FormMenu> {
   bool _tersedia = true;
   bool _menyimpan = false;
 
+  // ---- foto menu ----
+  final ImagePicker _picker = ImagePicker();
+  String? _gambarUrl; // foto yang sudah tersimpan
+  Uint8List? _fotoBaru; // foto baru yang dipilih (belum diunggah)
+  bool _hapusFoto = false;
+
   bool get _edit => widget.menu != null;
 
   @override
@@ -459,6 +493,8 @@ class _FormMenuState extends State<_FormMenu> {
 
     if (m != null) {
       _tersedia = m['tersedia'] == true;
+      final fotoLama = (m['gambar_url'] ?? '').toString().trim();
+      if (fotoLama.isNotEmpty) _gambarUrl = fotoLama;
       final k = (m['kategori'] ?? '').toString();
       if (k.isNotEmpty) {
         if (widget.kategoriList.contains(k)) {
@@ -510,6 +546,168 @@ class _FormMenuState extends State<_FormMenu> {
     );
   }
 
+  Future<void> _pilihFoto(ImageSource sumber) async {
+    try {
+      final file = await _picker.pickImage(
+        source: sumber,
+        maxWidth: 900,
+        maxHeight: 900,
+        imageQuality: 80,
+      );
+      if (file == null) return;
+
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+
+      if (bytes.length > 3 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto terlalu besar (maksimal 3 MB)'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _fotoBaru = bytes;
+        _hapusFoto = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memilih foto: $e'),
+          backgroundColor: AppColors.statusBatal,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Mengunggah foto baru ke Supabase Storage, mengembalikan alamat (URL)-nya.
+  Future<String> _unggahFoto() async {
+    final storage = Supabase.instance.client.storage.from('menu-images');
+    final path = 'menu/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    await storage.uploadBinary(
+      path,
+      _fotoBaru!,
+      fileOptions: const FileOptions(contentType: 'image/jpeg'),
+    );
+
+    return storage.getPublicUrl(path);
+  }
+
+  Widget _bagianFoto() {
+    final adaFotoLama = !_hapusFoto && (_gambarUrl ?? '').isNotEmpty;
+    final punyaFoto = _fotoBaru != null || adaFotoLama;
+    final bisaKamera = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+
+    final Widget pratinjau;
+    if (_fotoBaru != null) {
+      pratinjau = Image.memory(_fotoBaru!, fit: BoxFit.cover);
+    } else if (adaFotoLama) {
+      pratinjau = Image.network(
+        _gambarUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.broken_image_outlined,
+          color: Colors.black38,
+        ),
+      );
+    } else {
+      pratinjau = const Icon(
+        Icons.add_photo_alternate_outlined,
+        size: 34,
+        color: AppColors.forestGreen,
+      );
+    }
+
+    return Row(
+      children: [
+        InkWell(
+          onTap: _menyimpan ? null : () => _pilihFoto(ImageSource.gallery),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: 96,
+            height: 96,
+            clipBehavior: Clip.antiAlias,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.forestGreen.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: pratinjau,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Foto menu',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'Opsional. Foto dikecilkan otomatis.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _menyimpan
+                        ? null
+                        : () => _pilihFoto(ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library_outlined, size: 18),
+                    label: const Text('Galeri'),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  if (bisaKamera)
+                    OutlinedButton.icon(
+                      onPressed: _menyimpan
+                          ? null
+                          : () => _pilihFoto(ImageSource.camera),
+                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                      label: const Text('Kamera'),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  if (punyaFoto)
+                    TextButton.icon(
+                      onPressed: _menyimpan
+                          ? null
+                          : () => setState(() {
+                                _fotoBaru = null;
+                                _hapusFoto = true;
+                              }),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Hapus'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.statusBatal,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _simpan() async {
     if (!_formKey.currentState!.validate()) return;
     final kategori =
@@ -537,6 +735,13 @@ class _FormMenuState extends State<_FormMenu> {
         'catatan': _catatan.text.trim().isEmpty ? null : _catatan.text.trim(),
       };
       if (tipe.isNotEmpty) payload['tipe'] = tipe;
+
+      // Foto: unggah kalau ada foto baru, atau kosongkan kalau dihapus.
+      if (_fotoBaru != null) {
+        payload['gambar_url'] = await _unggahFoto();
+      } else if (_hapusFoto) {
+        payload['gambar_url'] = null;
+      }
 
       if (_edit) {
         await client
@@ -639,6 +844,8 @@ class _FormMenuState extends State<_FormMenu> {
                   _edit ? 'Edit Menu' : 'Tambah Menu Baru',
                   style: AppTextStyles.displayMedium,
                 ),
+                const SizedBox(height: 16),
+                _bagianFoto(),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _nama,

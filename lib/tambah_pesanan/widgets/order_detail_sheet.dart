@@ -519,15 +519,6 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                               scheme,
                             ),
                           _info(
-                            currentOrder.sumberPesanan == 'qr'
-                                ? Icons.qr_code_2_rounded
-                                : Icons.point_of_sale_rounded,
-                            currentOrder.sumberPesanan == 'qr'
-                                ? 'QR pelanggan'
-                                : 'Kasir',
-                            scheme,
-                          ),
-                          _info(
                             Icons.payments_outlined,
                             ReceiptService.metodeLabel(
                               currentOrder.metodePembayaran,

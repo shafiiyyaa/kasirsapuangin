@@ -31,7 +31,6 @@ class OrderListTile extends StatelessWidget {
             ? order.namaPelanggan!
             : 'Pelanggan';
 
-    final sumber = order.sumberPesanan == 'qr' ? 'QR' : 'Kasir';
     final sudahBayar = order.statusPembayaran == 'dibayar';
 
     return Card(
@@ -54,7 +53,7 @@ class OrderListTile extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                '$sumber • ${_jenisPesananLabel()}'
+                '${_jenisPesananLabel()}'
                 '${order.meja == null || order.meja!.isEmpty ? '' : ' • Meja ${order.meja}'}',
                 style: AppTextStyles.bodySmall,
               ),
