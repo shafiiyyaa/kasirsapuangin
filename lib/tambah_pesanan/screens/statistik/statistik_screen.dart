@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_scaffold.dart';
-import 'package:provider/provider.dart';
 
 import '../../../menu_board/models/order.dart';
-import '../../../menu_board/providers/pengeluaran_provider.dart';
 import '../../../menu_board/services/supabase_service.dart';
 import '../../../theme/app_theme.dart';
+import 'rekap_produksi.dart';
 
 const _namaBulan = [
   'Januari',
@@ -36,6 +35,9 @@ class _StatistikScreenState extends State<StatistikScreen> {
   bool _loading = true;
   String? _error;
 
+  // 0 = Ringkasan, 1 = Produksi & Best Seller
+  int _tab = 0;
+
   @override
   void initState() {
     super.initState();
@@ -53,9 +55,6 @@ class _StatistikScreenState extends State<StatistikScreen> {
       final awal = DateTime(_bulan.year, _bulan.month, 1);
       final akhir = DateTime(_bulan.year, _bulan.month + 1, 1);
       final orders = await SupabaseService.fetchOrdersPeriode(awal, akhir);
-      if (!mounted) return;
-      // Pastikan data pengeluaran sudah termuat untuk hitung uang keluar.
-      await context.read<PengeluaranProvider>().loadPengeluaran();
       if (!mounted) return;
       setState(() {
         _orders = orders;
@@ -90,104 +89,133 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pengeluaranProvider = context.watch<PengeluaranProvider>();
-    final uangKeluar =
-        pengeluaranProvider.totalPadaBulan(_bulan.year, _bulan.month);
-    final selisih = _uangMasuk - uangKeluar;
-
     return Scaffold(
-      appBar: AppScaffold.isWide(context) ? null : AppBar(
-        title: const Text('Statistik'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          tooltip: 'Buka menu',
-          onPressed: () => AppScaffold.openMenu(context),
+      appBar: AppScaffold.isWide(context)
+          ? null
+          : AppBar(
+              title: const Text('Statistik'),
+              leading: IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Buka menu',
+                onPressed: () => AppScaffold.openMenu(context),
+              ),
+            ),
+      body: RefreshIndicator(
+        onRefresh: _muat,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: 0,
+                    icon: Icon(Icons.payments_outlined),
+                    label: Text('Ringkasan'),
+                  ),
+                  ButtonSegment(
+                    value: 1,
+                    icon: Icon(Icons.local_fire_department_outlined),
+                    label: Text('Produksi & Terlaris'),
+                  ),
+                ],
+                selected: {_tab},
+                onSelectionChanged: (pilihan) =>
+                    setState(() => _tab = pilihan.first),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_tab == 1)
+              const RekapProduksiView()
+            else
+              ..._ringkasan(),
+          ],
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error!, style: AppTextStyles.bodyMedium),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: _muat,
-                        child: const Text('Coba Lagi'),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _muat,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                    children: [
-                      // ----- Pemilih bulan -----
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            onPressed: () => _gantiBulan(-1),
-                          ),
-                          Text(
-                            '${_namaBulan[_bulan.month - 1]} ${_bulan.year}',
-                            style: AppTextStyles.bodyLarge
-                                .copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            onPressed: () => _gantiBulan(1),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // ----- Ringkasan cash in / cash out -----
-                      _KartuRekap(
-                        label: 'Uang Masuk',
-                        nilai: _uangMasuk,
-                        warna: AppColors.forestGreen,
-                      ),
-                      _KartuRekap(
-                        label: 'Uang Keluar',
-                        nilai: uangKeluar,
-                        warna: AppColors.statusBatal,
-                      ),
-                      _KartuRekap(
-                        label: 'Selisih (Laba)',
-                        nilai: selisih,
-                        warna: AppColors.forestGreenDark,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('Rincian Pembayaran',
-                          style: AppTextStyles.displayMedium),
-                      const SizedBox(height: 8),
-                      _BarisMetode(
-                        icon: Icons.payments_outlined,
-                        label: 'Cash',
-                        nilai: _masukPerMetode('cash'),
-                      ),
-                      _BarisMetode(
-                        icon: Icons.qr_code_2,
-                        label: 'QRIS',
-                        nilai: _masukPerMetode('qris'),
-                      ),
-                      _BarisMetode(
-                        icon: Icons.account_balance,
-                        label: 'Transfer',
-                        nilai: _masukPerMetode('transfer'),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('Rekap Harian', style: AppTextStyles.displayMedium),
-                      const SizedBox(height: 4),
-                      ..._rekapHarian(),
-                    ],
-                  ),
-                ),
     );
+  }
+
+  List<Widget> _ringkasan() {
+    if (_loading) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+
+    if (_error != null) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Column(
+            children: [
+              Text(_error!, style: AppTextStyles.bodyMedium),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _muat,
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+
+    return [
+      // ----- Pemilih bulan -----
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => _gantiBulan(-1),
+          ),
+          Text(
+            '${_namaBulan[_bulan.month - 1]} ${_bulan.year}',
+            style:
+                AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => _gantiBulan(1),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      // ----- Pendapatan -----
+      _KartuRekap(
+        label: 'Pendapatan',
+        nilai: _uangMasuk,
+        warna: AppColors.forestGreen,
+      ),
+      const SizedBox(height: 16),
+      const Text('Rincian Pembayaran', style: AppTextStyles.displayMedium),
+      const SizedBox(height: 8),
+      _BarisMetode(
+        icon: Icons.payments_outlined,
+        label: 'Cash',
+        nilai: _masukPerMetode('cash'),
+      ),
+      _BarisMetode(
+        icon: Icons.qr_code_2,
+        label: 'QRIS',
+        nilai: _masukPerMetode('qris'),
+      ),
+      _BarisMetode(
+        icon: Icons.account_balance,
+        label: 'Transfer',
+        nilai: _masukPerMetode('transfer'),
+      ),
+      const SizedBox(height: 16),
+      const Text('Rekap Harian', style: AppTextStyles.displayMedium),
+      const SizedBox(height: 4),
+      ..._rekapHarian(),
+    ];
   }
 
   List<Widget> _rekapHarian() {

@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_theme.dart' hide AppTextStyles;
 import '../../../theme/app_text_styles.dart';
 import '../../../menu_board/providers/menu_provider.dart';
+import '../../widgets/app_scaffold.dart';
 
 class KelolaMenuScreen extends StatefulWidget {
   const KelolaMenuScreen({super.key});
@@ -195,6 +196,14 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.forestGreen,
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: AppScaffold.isWide(context)
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Buka menu',
+                onPressed: () => AppScaffold.openMenu(context),
+              ),
         title: const Text('Kelola Menu'),
         actions: [
           IconButton(

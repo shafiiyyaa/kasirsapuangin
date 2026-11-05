@@ -5,18 +5,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'menu_board/providers/menu_provider.dart';
 import 'menu_board/providers/order_provider.dart';
-import 'menu_board/providers/pengeluaran_provider.dart';
 import 'menu_board/providers/theme_provider.dart';
 
 import 'theme/app_theme.dart';
 
 import 'tambah_pesanan/widgets/app_scaffold.dart';
 import 'tambah_pesanan/screens/dashboard/dashboard_screen.dart';
-import 'tambah_pesanan/screens/menu/menu_screen.dart';
 import 'tambah_pesanan/screens/order/add_order_screen.dart';
 import 'tambah_pesanan/screens/order_history/order_history_screen.dart';
+import 'tambah_pesanan/screens/pengaturan/kelola_menu_screen.dart';
 import 'tambah_pesanan/screens/pengaturan/pengaturan_screen.dart';
-import 'tambah_pesanan/screens/pengeluaran/pengeluaran_screen.dart';
 import 'tambah_pesanan/screens/statistik/statistik_screen.dart';
 
 const String kSupabaseUrl = 'https://nbsemkswjlvnzwwlyhhg.supabase.co';
@@ -37,7 +35,6 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => MenuProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
-        ChangeNotifierProvider(create: (_) => PengeluaranProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const KasirSapuanginApp(),
@@ -66,7 +63,6 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
     context.read<MenuProvider>().loadMenu();
     context.read<OrderProvider>().loadOrders();
     context.read<OrderProvider>().loadRingkasanHariIni();
-    context.read<PengeluaranProvider>().loadPengeluaran();
   }
 
   @override
@@ -104,7 +100,7 @@ final GoRouter _router = GoRouter(
       name: 'menu',
       builder: (context, state) => const AppScaffold(
         currentIndex: 1,
-        child: MenuScreen(),
+        child: KelolaMenuScreen(),
       ),
     ),
     GoRoute(
@@ -124,18 +120,10 @@ final GoRouter _router = GoRouter(
       ),
     ),
     GoRoute(
-      path: '/pengeluaran',
-      name: 'pengeluaran',
-      builder: (context, state) => const AppScaffold(
-        currentIndex: 4,
-        child: PengeluaranScreen(),
-      ),
-    ),
-    GoRoute(
       path: '/pengaturan',
       name: 'pengaturan',
       builder: (context, state) => const AppScaffold(
-        currentIndex: 5,
+        currentIndex: 4,
         child: PengaturanScreen(),
       ),
     ),

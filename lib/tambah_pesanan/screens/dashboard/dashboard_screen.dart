@@ -762,15 +762,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Consumer<OrderProvider>(
       builder: (context, provider, _) {
         final now = DateTime.now();
-        final orders = provider.orders
-            .where((order) {
-              final created = order.createdAt.toLocal();
-              return created.year == now.year &&
-                  created.month == now.month &&
-                  created.day == now.day;
-            })
-            .take(6)
-            .toList();
+        final semuaHariIni = provider.orders.where((order) {
+          final created = order.createdAt.toLocal();
+          return created.year == now.year &&
+              created.month == now.month &&
+              created.day == now.day;
+        }).toList();
+        final orders = semuaHariIni.take(5).toList();
+        final sisa = semuaHariIni.length - orders.length;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -809,6 +808,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onTap: () => showOrderDetail(context, order),
                     onLongPress: () => _deleteOrder(order),
                   ),
+                ),
+              ),
+            if (sisa > 0)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => context.go('/riwayat'),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text('Lainnya (+$sisa pesanan)'),
                 ),
               ),
             const SizedBox(height: 8),

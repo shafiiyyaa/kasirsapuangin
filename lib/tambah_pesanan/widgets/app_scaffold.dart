@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,8 +5,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 
 class AppScaffold extends StatefulWidget {
-  /// 0 = Dashboard, 1 = Menu, 2 = Riwayat,
-  /// 3 = Statistik, 4 = Pengeluaran, 5 = Pengaturan.
+  /// 0 = Dashboard, 1 = Kelola Menu, 2 = Riwayat,
+  /// 3 = Statistik, 4 = Pengaturan.
   final int currentIndex;
   final Widget child;
 
@@ -253,7 +252,7 @@ class _SidebarContent extends StatelessWidget {
                   ),
                   _SidebarItem(
                     icon: Icons.restaurant_menu_rounded,
-                    label: 'Menu',
+                    label: 'Kelola Menu',
                     selected: currentIndex == 1,
                     dark: dark,
                     onTap: () => _navigate(context, '/menu'),
@@ -289,16 +288,9 @@ class _SidebarContent extends StatelessWidget {
                     onTap: () => _navigate(context, '/statistik'),
                   ),
                   _SidebarItem(
-                    icon: Icons.shopping_basket_rounded,
-                    label: 'Pengeluaran',
-                    selected: currentIndex == 4,
-                    dark: dark,
-                    onTap: () => _navigate(context, '/pengeluaran'),
-                  ),
-                  _SidebarItem(
                     icon: Icons.settings_rounded,
                     label: 'Pengaturan',
-                    selected: currentIndex == 5,
+                    selected: currentIndex == 4,
                     dark: dark,
                     onTap: () => _navigate(context, '/pengaturan'),
                   ),

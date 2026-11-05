@@ -50,7 +50,7 @@ class AppDrawer extends StatelessWidget {
             ),
             _MenuItem(
               icon: Icons.restaurant_menu_outlined,
-              label: 'Menu',
+              label: 'Kelola Menu',
               selected: currentIndex == 1,
               onTap: () => _pindah(context, '/menu'),
             ),
@@ -67,17 +67,11 @@ class AppDrawer extends StatelessWidget {
               selected: false,
               onTap: () => _pindah(context, '/statistik', push: true),
             ),
-            _MenuItem(
-              icon: Icons.shopping_basket_outlined,
-              label: 'Pengeluaran',
-              selected: false,
-              onTap: () => _pindah(context, '/pengeluaran', push: true),
-            ),
             const Divider(),
             _MenuItem(
               icon: Icons.settings_outlined,
               label: 'Pengaturan',
-              selected: currentIndex == 3,
+              selected: currentIndex == 4,
               onTap: () => _pindah(context, '/pengaturan', push: true),
             ),
           ],

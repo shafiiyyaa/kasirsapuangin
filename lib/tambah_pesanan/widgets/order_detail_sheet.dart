@@ -374,9 +374,9 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                         child: Column(
                           children: [
                             if (langkah == LangkahPesanan.batal)
-                              Padding(
+                              const Padding(
                                 padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                    EdgeInsets.symmetric(vertical: 8),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -384,8 +384,8 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                                       Icons.cancel_rounded,
                                       color: AppColors.statusBatal,
                                     ),
-                                    const SizedBox(width: 8),
-                                    const Text(
+                                    SizedBox(width: 8),
+                                    Text(
                                       'Pesanan ini dibatalkan',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w700,
@@ -476,7 +476,7 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                                         takeaway
                                             ? 'Pesanan selesai diambil'
                                             : 'Pesanan selesai diantar',
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.statusSelesai,
                                         ),

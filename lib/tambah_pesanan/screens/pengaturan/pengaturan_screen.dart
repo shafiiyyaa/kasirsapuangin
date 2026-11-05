@@ -8,7 +8,6 @@ import '../../../menu_board/providers/theme_provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
-import 'kelola_menu_screen.dart';
 
 class PengaturanScreen extends StatelessWidget {
   const PengaturanScreen({super.key});
@@ -65,31 +64,6 @@ class PengaturanScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ===== menu =====
-          _judul('MENU'),
-          _kartu(
-            ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              leading: _ikon(Icons.restaurant_menu),
-              title: const Text('Kelola Menu',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              subtitle: const Text(
-                'Tambah, edit nama & harga, hapus, atau tandai habis',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-              trailing:
-                  const Icon(Icons.chevron_right, color: AppColors.forestGreen),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const KelolaMenuScreen()),
-                );
-              },
             ),
           ),
           const SizedBox(height: 24),
