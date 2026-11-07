@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../menu_board/providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 
@@ -37,8 +39,7 @@ class AppScaffold extends StatefulWidget {
 class _AppScaffoldState extends State<AppScaffold> {
   static final List<_AppScaffoldState> _livingStates = [];
 
-  final GlobalKey<ScaffoldState> _scaffoldKey =
-      GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static _AppScaffoldState? get active =>
       _livingStates.isEmpty ? null : _livingStates.last;
@@ -61,18 +62,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
-    final background = dark
-        ? AppColors.darkBackground
-        : AppColors.lightBackground;
+    final background =
+        dark ? AppColors.darkBackground : AppColors.lightBackground;
 
-    final sidebar = dark
-        ? AppColors.darkSidebar
-        : AppColors.lightSidebar;
+    final sidebar = dark ? AppColors.darkSidebar : AppColors.lightSidebar;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >= AppScaffold.desktopBreakpoint;
+        final wide = constraints.maxWidth >= AppScaffold.desktopBreakpoint;
 
         return Scaffold(
           key: _scaffoldKey,
@@ -101,9 +98,8 @@ class _AppScaffoldState extends State<AppScaffold> {
                     VerticalDivider(
                       width: 1,
                       thickness: 1,
-                      color: dark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
+                      color:
+                          dark ? AppColors.darkBorder : AppColors.lightBorder,
                     ),
                     Expanded(child: widget.child),
                   ],
@@ -140,28 +136,51 @@ class _SidebarContent extends StatelessWidget {
     }
   }
 
+  Future<void> _keluar(BuildContext context) async {
+    final auth = context.read<AuthProvider>();
+    final navigator = Navigator.of(context);
+
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Keluar dari akun?'),
+        content: const Text('Kamu harus login lagi untuk memakai aplikasi.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+
+    if (yakin != true) return;
+    if (isDrawer && navigator.canPop()) navigator.pop();
+    await auth.keluar();
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
-    final background = dark
-        ? AppColors.darkSidebar
-        : AppColors.lightSidebar;
+    final background = dark ? AppColors.darkSidebar : AppColors.lightSidebar;
 
-    final primaryText = dark
-        ? AppColors.darkTextPrimary
-        : AppColors.lightTextPrimary;
+    final primaryText =
+        dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
-    final secondaryText = dark
-        ? AppColors.darkTextSecondary
-        : AppColors.lightTextSecondary;
+    final secondaryText =
+        dark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    final accent =
-        dark ? AppColors.sageLight : AppColors.forestGreen;
+    final accent = dark ? AppColors.sageLight : AppColors.forestGreen;
 
-    final border = dark
-        ? AppColors.darkBorder
-        : AppColors.lightBorder;
+    final border = dark ? AppColors.darkBorder : AppColors.lightBorder;
+
+    final auth = context.watch<AuthProvider>();
+    final isAdmin = auth.isAdmin;
 
     return Material(
       color: background,
@@ -184,8 +203,7 @@ class _SidebarContent extends StatelessWidget {
                       border: Border.all(
                         color: dark
                             ? AppColors.darkBorder
-                            : AppColors.forestGreenMuda
-                                .withOpacity(0.45),
+                            : AppColors.forestGreenMuda.withOpacity(0.45),
                       ),
                     ),
                     child: Icon(
@@ -250,51 +268,114 @@ class _SidebarContent extends StatelessWidget {
                     dark: dark,
                     onTap: () => _navigate(context, '/'),
                   ),
-                  _SidebarItem(
-                    icon: Icons.restaurant_menu_rounded,
-                    label: 'Kelola Menu',
-                    selected: currentIndex == 1,
-                    dark: dark,
-                    onTap: () => _navigate(context, '/menu'),
-                  ),
-                  _SidebarItem(
-                    icon: Icons.receipt_long_rounded,
-                    label: 'Riwayat Pesanan',
-                    selected: currentIndex == 2,
-                    dark: dark,
-                    onTap: () => _navigate(context, '/riwayat'),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      14, 23, 12, 9,
+                  if (isAdmin) ...[
+                    _SidebarItem(
+                      icon: Icons.restaurant_menu_rounded,
+                      label: 'Kelola Menu',
+                      selected: currentIndex == 1,
+                      dark: dark,
+                      onTap: () => _navigate(context, '/menu'),
                     ),
-                    child: Text(
-                      'OPERASIONAL',
-                      style: AppTextStyles.label.copyWith(
-                        color: secondaryText,
-                        fontSize: 10,
-                        letterSpacing: 1.6,
-                        fontWeight: FontWeight.w700,
+                    _SidebarItem(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Riwayat Pesanan',
+                      selected: currentIndex == 2,
+                      dark: dark,
+                      onTap: () => _navigate(context, '/riwayat'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        14,
+                        23,
+                        12,
+                        9,
+                      ),
+                      child: Text(
+                        'OPERASIONAL',
+                        style: AppTextStyles.label.copyWith(
+                          color: secondaryText,
+                          fontSize: 10,
+                          letterSpacing: 1.6,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-
-                  _SidebarItem(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Statistik',
-                    selected: currentIndex == 3,
-                    dark: dark,
-                    onTap: () => _navigate(context, '/statistik'),
-                  ),
-                  _SidebarItem(
-                    icon: Icons.settings_rounded,
-                    label: 'Pengaturan',
-                    selected: currentIndex == 4,
-                    dark: dark,
-                    onTap: () => _navigate(context, '/pengaturan'),
-                  ),
+                    _SidebarItem(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Statistik',
+                      selected: currentIndex == 3,
+                      dark: dark,
+                      onTap: () => _navigate(context, '/statistik'),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.settings_rounded,
+                      label: 'Pengaturan',
+                      selected: currentIndex == 4,
+                      dark: dark,
+                      onTap: () => _navigate(context, '/pengaturan'),
+                    ),
+                  ],
                 ],
+              ),
+            ),
+
+            // AKUN
+            Padding(
+              padding: const EdgeInsets.fromLTRB(17, 6, 17, 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                decoration: BoxDecoration(
+                  color:
+                      dark ? AppColors.darkSurface : AppColors.lightSurfaceAlt,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isAdmin
+                          ? Icons.admin_panel_settings_rounded
+                          : Icons.badge_rounded,
+                      color: accent,
+                      size: 21,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            auth.profil?.nama ?? '-',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: primaryText,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            isAdmin ? 'Admin' : 'Kasir',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: secondaryText,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Keluar',
+                      onPressed: () => _keluar(context),
+                      icon: Icon(
+                        Icons.logout_rounded,
+                        color: secondaryText,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -313,7 +394,10 @@ class _SidebarContent extends StatelessWidget {
             // FOOTER
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                17, 0, 17, 16,
+                17,
+                0,
+                17,
+                16,
               ),
               child: Container(
                 width: double.infinity,
@@ -322,9 +406,8 @@ class _SidebarContent extends StatelessWidget {
                   vertical: 13,
                 ),
                 decoration: BoxDecoration(
-                  color: dark
-                      ? AppColors.darkSurface
-                      : AppColors.lightSurfaceAlt,
+                  color:
+                      dark ? AppColors.darkSurface : AppColors.lightSurfaceAlt,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: border),
                 ),
@@ -378,21 +461,17 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primaryText = dark
-        ? AppColors.darkTextPrimary
-        : AppColors.lightTextPrimary;
+    final primaryText =
+        dark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
-    final secondaryText = dark
-        ? AppColors.darkTextSecondary
-        : AppColors.lightTextSecondary;
+    final secondaryText =
+        dark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     final selectedBackground = dark
         ? AppColors.darkSurfaceAlt
         : AppColors.forestGreen.withOpacity(0.12);
 
-    final selectedText = dark
-        ? AppColors.sageLight
-        : AppColors.forestGreen;
+    final selectedText = dark ? AppColors.sageLight : AppColors.forestGreen;
 
     final selectedBorder = dark
         ? AppColors.sage.withOpacity(0.45)
@@ -401,9 +480,7 @@ class _SidebarItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
       child: Material(
-        color: selected
-            ? selectedBackground
-            : Colors.transparent,
+        color: selected ? selectedBackground : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -416,9 +493,7 @@ class _SidebarItem extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: selected
-                    ? selectedBorder
-                    : Colors.transparent,
+                color: selected ? selectedBorder : Colors.transparent,
               ),
             ),
             child: Row(
@@ -426,21 +501,15 @@ class _SidebarItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 20,
-                  color: selected
-                      ? selectedText
-                      : secondaryText,
+                  color: selected ? selectedText : secondaryText,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: selected
-                          ? selectedText
-                          : primaryText,
-                      fontWeight: selected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      color: selected ? selectedText : primaryText,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ),
@@ -469,9 +538,7 @@ class _NatureDoodlePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final color = dark
-        ? const Color(0xFF7FAE94)
-        : const Color(0xFF8FA68B);
+    final color = dark ? const Color(0xFF7FAE94) : const Color(0xFF8FA68B);
 
     final linePaint = Paint()
       ..color = color.withOpacity(dark ? 0.30 : 0.34)
