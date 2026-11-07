@@ -87,6 +87,24 @@ class _StatistikScreenState extends State<StatistikScreen> {
           (o) => o.status != OrderStatus.batal && o.metodePembayaran == metode)
       .fold(0, (sum, o) => sum + o.totalHarga);
 
+  List<Order> get _orderSah =>
+      _orders.where((o) => o.status != OrderStatus.batal).toList();
+
+  int get _hargaAsli => _orderSah.fold(0, (s, o) => s + o.subtotalAsli);
+
+  int get _totalDiskon => _orderSah.fold(0, (s, o) => s + o.diskon);
+
+  int get _pesananBerdiskon => _orderSah.where((o) => o.diskon > 0).length;
+
+  String _subJudulHari(List<Order> list) {
+    final diskon = list
+        .where((o) => o.status != OrderStatus.batal)
+        .fold(0, (s, o) => s + o.diskon);
+    return diskon > 0
+        ? '${list.length} pesanan - diskon Rp${_rupiah(diskon)}'
+        : '${list.length} pesanan';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -189,7 +207,17 @@ class _StatistikScreenState extends State<StatistikScreen> {
       const SizedBox(height: 8),
       // ----- Pendapatan -----
       _KartuRekap(
-        label: 'Pendapatan',
+        label: 'Harga Asli (sebelum diskon)',
+        nilai: _hargaAsli,
+        warna: AppColors.statusDiproses,
+      ),
+      _KartuRekap(
+        label: 'Total Diskon ($_pesananBerdiskon pesanan)',
+        nilai: _totalDiskon,
+        warna: AppColors.warning,
+      ),
+      _KartuRekap(
+        label: 'Pendapatan (setelah diskon)',
         nilai: _uangMasuk,
         warna: AppColors.forestGreen,
       ),
@@ -245,7 +273,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
             '${_hariPendek[hari.weekday - 1]}, ${hari.day} ${_namaBulan[hari.month - 1]}',
             style: AppTextStyles.bodyLarge,
           ),
-          subtitle: Text('${perHari[hari]!.length} pesanan',
+          subtitle: Text(_subJudulHari(perHari[hari]!),
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textSecondary)),
           trailing: Text(
@@ -283,7 +311,8 @@ class _KartuRekap extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTextStyles.bodyLarge),
+          Expanded(child: Text(label, style: AppTextStyles.bodyLarge)),
+          const SizedBox(width: 8),
           Text(
             'Rp${nilai.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}',
             style: AppTextStyles.priceLarge.copyWith(color: warna),

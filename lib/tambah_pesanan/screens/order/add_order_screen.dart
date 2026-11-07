@@ -10,6 +10,7 @@ import '../../services/receipt_service.dart'; // ← sesuaikan lokasi receipt_se
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_scaffold.dart';
+import '../../widgets/ringkasan_total.dart';
 
 String rupiah(num nominal) {
   final digits = nominal.toInt().toString();
@@ -172,8 +173,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                           ? const _TampilanKosong(
                               icon: Icons.storefront_rounded,
                               judul: 'Belum ada menu',
-                              pesan:
-                                  'Tambahkan menu dulu di Pengaturan > Kelola Menu.',
+                              pesan: 'Tambahkan menu dulu di Kelola Menu.',
                             )
                           : Consumer<OrderProvider>(
                               builder: (context, orderProv, _) {
@@ -236,7 +236,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                           style: AppTextStyles.bodySmall),
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(rupiah(prov.totalKeranjang),
+                        child: Text(rupiah(prov.totalBayar),
                             style: AppTextStyles.priceLarge),
                       ),
                     ],
@@ -586,14 +586,11 @@ class _CartSheetState extends State<_CartSheet> {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                            child: Text('Total',
-                                style: AppTextStyles.titleMedium)),
-                        Text(rupiah(prov.totalKeranjang),
-                            style: AppTextStyles.priceLarge),
-                      ],
+                    child: RingkasanTotal(
+                      subtotal: prov.totalKeranjang,
+                      diskon: prov.diskonKeranjang,
+                      total: prov.totalBayar,
+                      labelDiskon: prov.diskonSetting.namaStruk,
                     ),
                   ),
                   const SizedBox(height: 14),

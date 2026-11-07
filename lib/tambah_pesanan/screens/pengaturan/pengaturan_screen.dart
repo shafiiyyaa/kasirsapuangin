@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_scaffold.dart';
+import 'diskon_pengaturan_card.dart';
 import 'package:provider/provider.dart';
 import '../../../menu_board/providers/theme_provider.dart';
 
@@ -66,6 +67,11 @@ class PengaturanScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+
+          // ===== diskon =====
+          _judul('DISKON'),
+          _kartu(const DiskonPengaturanCard()),
           const SizedBox(height: 24),
 
           // ===== tampilan =====

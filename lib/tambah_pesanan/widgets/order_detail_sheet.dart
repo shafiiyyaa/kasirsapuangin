@@ -6,6 +6,7 @@ import '../../menu_board/providers/order_provider.dart';
 import '../../theme/app_theme.dart';
 import '../services/receipt_service.dart';
 import 'order_status.dart';
+import 'ringkasan_total.dart';
 
 void showOrderDetail(BuildContext context, Order order) {
   showModalBottomSheet(
@@ -106,6 +107,31 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
     } finally {
       if (mounted) setState(() => _sibuk = false);
     }
+  }
+
+  /// Tandai pesanan selesai / belum selesai (satu saklar sederhana).
+  Future<void> _ubahSelesai(Order sekarang, bool selesai) {
+    return _jalankan(
+      () async {
+        final provider = context.read<OrderProvider>();
+        if (selesai) {
+          await provider.updateOrderStatus(sekarang.id, OrderStatus.selesai);
+          await provider.updateStatusPengantaran(
+            sekarang.id,
+            sudahDiantar: true,
+          );
+        } else {
+          await provider.updateStatusPengantaran(
+            sekarang.id,
+            sudahDiantar: false,
+          );
+          await provider.updateOrderStatus(sekarang.id, OrderStatus.baru);
+        }
+      },
+      selesai
+          ? 'Pesanan ditandai selesai.'
+          : 'Pesanan dikembalikan ke belum selesai.',
+    );
   }
 
   Future<void> _batalkan(Order sekarang) async {
@@ -264,7 +290,6 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
         final sudahDibayar = currentOrder.statusPembayaran == 'dibayar';
         final langkah = langkahDari(currentOrder);
         final takeaway = apakahTakeaway(currentOrder);
-        final labelMaju = labelAksi(langkah, takeaway: takeaway);
 
         return Container(
           constraints: BoxConstraints(
@@ -362,142 +387,83 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ===== STATUS PESANAN =====
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest
-                              .withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          children: [
-                            if (langkah == LangkahPesanan.batal)
-                              const Padding(
-                                padding:
-                                    EdgeInsets.symmetric(vertical: 8),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.cancel_rounded,
-                                      color: AppColors.statusBatal,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Pesanan ini dibatalkan',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else
-                              PelacakStatus(
-                                langkah: langkah,
-                                takeaway: takeaway,
+                      // ===== STATUS PESANAN (disederhanakan) =====
+                      if (langkah == LangkahPesanan.batal)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusBatal.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.cancel_rounded,
+                                color: AppColors.statusBatal,
                               ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                if (langkah != LangkahPesanan.diterima)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: OutlinedButton.icon(
-                                      onPressed: _sibuk
-                                          ? null
-                                          : () => _jalankan(
-                                                () => mundurSatuLangkah(
-                                                  context,
-                                                  currentOrder,
-                                                ),
-                                                langkah == LangkahPesanan.batal
-                                                    ? 'Pesanan diaktifkan kembali.'
-                                                    : 'Status dikembalikan satu langkah.',
-                                              ),
-                                      style: OutlinedButton.styleFrom(
-                                        minimumSize: const Size(0, 46),
-                                      ),
-                                      icon: const Icon(
-                                        Icons.undo_rounded,
-                                        size: 18,
-                                      ),
-                                      label: Text(
-                                        langkah == LangkahPesanan.batal
-                                            ? 'Aktifkan'
-                                            : 'Kembali',
-                                      ),
-                                    ),
-                                  ),
-                                if (labelMaju != null)
-                                  Expanded(
-                                    child: FilledButton.icon(
-                                      onPressed: _sibuk
-                                          ? null
-                                          : () => _jalankan(
-                                                () => majuSatuLangkah(
-                                                  context,
-                                                  currentOrder,
-                                                ),
-                                                pesanSetelahMaju(
-                                                  langkah,
-                                                  takeaway: takeaway,
-                                                ),
-                                              ),
-                                      style: FilledButton.styleFrom(
-                                        minimumSize: const Size.fromHeight(46),
-                                      ),
-                                      icon: _sibuk
-                                          ? const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : Icon(ikonAksi(langkah)),
-                                      label: Text(labelMaju),
-                                    ),
-                                  )
-                                else if (langkah == LangkahPesanan.diantar)
-                                  Expanded(
-                                    child: Container(
-                                      height: 46,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.statusSelesai
-                                            .withValues(alpha: 0.14),
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        takeaway
-                                            ? 'Pesanan selesai diambil'
-                                            : 'Pesanan selesai diantar',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.statusSelesai,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            if (langkah != LangkahPesanan.batal &&
-                                langkah != LangkahPesanan.diantar)
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Pesanan ini dibatalkan',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
                               TextButton(
-                                onPressed:
-                                    _sibuk ? null : () => _batalkan(currentOrder),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                ),
-                                child: const Text('Batalkan pesanan'),
+                                onPressed: _sibuk
+                                    ? null
+                                    : () => _jalankan(
+                                          () => mundurSatuLangkah(
+                                            context,
+                                            currentOrder,
+                                          ),
+                                          'Pesanan diaktifkan kembali.',
+                                        ),
+                                child: const Text('Aktifkan lagi'),
                               ),
-                          ],
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest
+                                .withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            children: [
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Pesanan selesai'),
+                                subtitle: Text(
+                                  langkah == LangkahPesanan.diantar
+                                      ? 'Sudah selesai'
+                                      : 'Belum selesai',
+                                ),
+                                value: langkah == LangkahPesanan.diantar,
+                                onChanged: _sibuk
+                                    ? null
+                                    : (value) =>
+                                        _ubahSelesai(currentOrder, value),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: _sibuk
+                                      ? null
+                                      : () => _batalkan(currentOrder),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  child: const Text('Batalkan pesanan'),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 14),
 
                       // ===== INFO RINGKAS =====
@@ -607,25 +573,11 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                 ),
               ),
               const Divider(height: 24),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Total',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Rp${_rupiah(currentOrder.totalHarga)}',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              RingkasanTotal(
+                subtotal: currentOrder.subtotalAsli,
+                diskon: currentOrder.diskon,
+                total: currentOrder.totalHarga,
+                labelDiskon: currentOrder.diskonLabel,
               ),
             ],
           ),

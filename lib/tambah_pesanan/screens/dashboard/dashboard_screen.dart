@@ -9,6 +9,7 @@ import '../../../menu_board/providers/order_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/order_detail_sheet.dart';
+import '../../widgets/ringkasan_total.dart';
 import '../../services/receipt_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -287,7 +288,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   label: Text(
                     provider.jumlahItemKeranjang == 0
                         ? 'Tambah pesanan'
-                        : 'Pesanan (${provider.jumlahItemKeranjang}) • ${_formatRupiah(provider.totalKeranjang)}',
+                        : 'Pesanan (${provider.jumlahItemKeranjang}) • ${_formatRupiah(provider.totalBayar)}',
                   ),
                 ),
               ),
@@ -724,13 +725,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Expanded(
-                      child: Text('Total', style: AppTextStyles.titleMedium)),
-                  Text(_formatRupiah(provider.totalKeranjang),
-                      style: AppTextStyles.priceLarge),
-                ],
+              RingkasanTotal(
+                subtotal: provider.totalKeranjang,
+                diskon: provider.diskonKeranjang,
+                total: provider.totalBayar,
+                labelDiskon: provider.diskonSetting.namaStruk,
               ),
               const SizedBox(height: 12),
               SizedBox(

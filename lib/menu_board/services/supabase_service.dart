@@ -1,6 +1,6 @@
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/diskon.dart';
 import '../models/menu_item.dart';
 import '../models/order.dart';
 import '../models/pengeluaran.dart';
@@ -20,6 +20,32 @@ class SupabaseService {
   }
 
   static SupabaseClient get client => Supabase.instance.client;
+
+  // ============================================================
+  // DISKON
+  // ============================================================
+
+  static Future<DiskonSetting> fetchDiskon() async {
+    final data = await client
+        .from('pengaturan_diskon')
+        .select()
+        .eq('id', 1)
+        .maybeSingle();
+
+    if (data == null) return DiskonSetting.nonaktif;
+    return DiskonSetting.fromMap(data);
+  }
+
+  static Future<void> simpanDiskon(DiskonSetting s) async {
+    await client.from('pengaturan_diskon').upsert({
+      'id': 1,
+      'aktif': s.aktif,
+      'tipe': s.tipe,
+      'nilai': s.nilai,
+      'label': s.label,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
 
   // ============================================================
   // MENU
@@ -103,15 +129,20 @@ class SupabaseService {
     String sumberPesanan = 'kasir',
     String statusPembayaran = 'belum_dibayar',
     String statusPengantaran = 'belum_diantar',
+    int diskon = 0,
+    String? diskonLabel,
   }) async {
     if (items.isEmpty) {
       throw Exception('Keranjang pesanan masih kosong.');
     }
 
-    final totalHarga = items.fold<int>(
+    final subtotal = items.fold<int>(
       0,
       (sum, item) => sum + item.subtotal,
     );
+    final diskonAman =
+        diskon < 0 ? 0 : (diskon > subtotal ? subtotal : diskon);
+    final totalHarga = subtotal - diskonAman;
 
     // Simpan data utama pesanan.
     final orderData = await client
@@ -122,6 +153,9 @@ class SupabaseService {
           'metode_pembayaran': metodePembayaran,
           'kasir': kasir,
           'total_harga': totalHarga,
+          'subtotal_harga': subtotal,
+          'diskon': diskonAman,
+          'diskon_label': diskonAman > 0 ? diskonLabel : null,
           'status': OrderStatus.baru.dbValue,
           'jenis_pesanan': jenisPesanan,
           'sumber_pesanan': sumberPesanan,

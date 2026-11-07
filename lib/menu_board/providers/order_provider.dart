@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 
+import '../models/diskon.dart';
 import '../models/order.dart';
 import '../services/supabase_service.dart';
 
@@ -25,6 +25,8 @@ class OrderProvider extends ChangeNotifier {
   int _ringkasanJumlahPesanan = 0;
   int _ringkasanTotalPendapatan = 0;
   bool _isLoadingRingkasan = false;
+
+  DiskonSetting _diskonSetting = DiskonSetting.nonaktif;
 
   List<CartItem> get cart => List.unmodifiable(_cart);
   String get namaPelanggan => _namaPelanggan;
@@ -52,6 +54,14 @@ class OrderProvider extends ChangeNotifier {
       _cart.fold(0, (total, item) => total + item.jumlah);
 
   bool get keranjangKosong => _cart.isEmpty;
+
+  DiskonSetting get diskonSetting => _diskonSetting;
+
+  /// Potongan diskon untuk isi keranjang saat ini.
+  int get diskonKeranjang => _diskonSetting.hitung(totalKeranjang);
+
+  /// Total yang harus dibayar (harga asli - diskon).
+  int get totalBayar => totalKeranjang - diskonKeranjang;
 
   void setNamaPelanggan(String value) {
     _namaPelanggan = value;
@@ -182,6 +192,8 @@ class OrderProvider extends ChangeNotifier {
         jenisPesanan: _jenisPesanan,
         sumberPesanan: 'kasir',
         statusPembayaran: _statusPembayaran,
+        diskon: _diskonSetting.hitung(totalKeranjang),
+        diskonLabel: _diskonSetting.namaStruk,
         statusPengantaran: 'belum_diantar',
       );
 
@@ -221,11 +233,22 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadDiskon() async {
+    try {
+      _diskonSetting = await SupabaseService.fetchDiskon();
+      notifyListeners();
+    } catch (_) {
+      // Pertahankan pengaturan diskon terakhir jika gagal dimuat.
+    }
+  }
+
   Future<void> loadRingkasanHariIni() async {
     _isLoadingRingkasan = true;
     notifyListeners();
 
     try {
+      await loadDiskon();
+
       final result = await SupabaseService.fetchRingkasanHariIni();
 
       _ringkasanJumlahPesanan = result.jumlahPesanan;
