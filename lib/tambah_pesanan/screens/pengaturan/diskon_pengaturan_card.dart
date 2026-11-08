@@ -7,6 +7,34 @@ import '../../../menu_board/providers/order_provider.dart';
 import '../../../menu_board/services/supabase_service.dart';
 import '../../../theme/app_colors.dart';
 
+/// Memberi titik pemisah ribuan: "1000" -> "1.000", "1500000" -> "1.500.000".
+String _ribuan(String digit) {
+  final buffer = StringBuffer();
+  for (var i = 0; i < digit.length; i++) {
+    buffer.write(digit[i]);
+    final sisa = digit.length - i - 1;
+    if (sisa > 0 && sisa % 3 == 0) buffer.write('.');
+  }
+  return buffer.toString();
+}
+
+/// Format angka otomatis saat mengetik (1000 jadi 1.000).
+class _FormatterRibuan extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digit = newValue.text.replaceAll(RegExp('[^0-9]'), '');
+    if (digit.isEmpty) return const TextEditingValue(text: '');
+    final hasil = _ribuan(digit);
+    return TextEditingValue(
+      text: hasil,
+      selection: TextSelection.collapsed(offset: hasil.length),
+    );
+  }
+}
+
 class DiskonPengaturanCard extends StatefulWidget {
   const DiskonPengaturanCard({super.key});
 
@@ -37,8 +65,11 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
     super.dispose();
   }
 
-  static String _rp(int n) =>
-      'Rp${n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}';
+  static String _rp(int n) => 'Rp${_ribuan(n.toString())}';
+
+  /// Nilai angka dari kolom (titik pemisah ribuan diabaikan).
+  int get _nilaiAngka =>
+      int.tryParse(_nilaiC.text.replaceAll('.', '')) ?? 0;
 
   Future<void> _muat() async {
     try {
@@ -47,7 +78,9 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
       setState(() {
         _aktif = s.aktif;
         _tipe = s.tipe;
-        _nilaiC.text = s.nilai > 0 ? s.nilai.toString() : '';
+        _nilaiC.text = s.nilai > 0
+            ? (s.persen ? s.nilai.toString() : _ribuan(s.nilai.toString()))
+            : '';
         _labelC.text = s.label ?? '';
         _error = null;
         _loading = false;
@@ -73,9 +106,17 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
   DiskonSetting get _draft => DiskonSetting(
         aktif: _aktif,
         tipe: _tipe,
-        nilai: int.tryParse(_nilaiC.text) ?? 0,
+        nilai: _nilaiAngka,
         label: _labelC.text.trim().isEmpty ? null : _labelC.text.trim(),
       );
+
+  void _gantiTipe(String tipeBaru) {
+    setState(() {
+      _tipe = tipeBaru;
+      final digit = _nilaiC.text.replaceAll('.', '');
+      _nilaiC.text = tipeBaru == 'nominal' ? _ribuan(digit) : digit;
+    });
+  }
 
   Future<void> _simpan() async {
     final d = _draft;
@@ -90,6 +131,12 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
     if (d.persen && d.nilai > 100) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Diskon persen maksimal 100%.')),
+      );
+      return;
+    }
+    if (!d.persen && d.nilai > 100000000) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Diskon nominal terlalu besar.')),
       );
       return;
     }
@@ -141,10 +188,12 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
       );
     }
 
+    final nominal = _tipe == 'nominal';
+
     final contoh = DiskonSetting(
       aktif: true,
       tipe: _tipe,
-      nilai: int.tryParse(_nilaiC.text) ?? 0,
+      nilai: _nilaiAngka,
     ).hitung(100000);
 
     return Padding(
@@ -176,18 +225,25 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
                 ButtonSegment(value: 'nominal', label: Text('Nominal (Rp)')),
               ],
               selected: {_tipe},
-              onSelectionChanged: (p) => setState(() => _tipe = p.first),
+              onSelectionChanged: (p) => _gantiTipe(p.first),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _nilaiC,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: nominal
+                ? [_FormatterRibuan()]
+                : [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(3),
+                  ],
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              labelText:
-                  _tipe == 'persen' ? 'Besar diskon (%)' : 'Besar diskon (Rp)',
+              labelText: nominal ? 'Besar diskon (Rp)' : 'Besar diskon (%)',
+              hintText: nominal ? 'contoh: 5.000' : 'contoh: 10',
+              prefixText: nominal ? 'Rp ' : null,
+              suffixText: nominal ? null : '%',
               border: const OutlineInputBorder(),
             ),
           ),

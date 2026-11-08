@@ -203,7 +203,7 @@ class _SidebarContent extends StatelessWidget {
                       border: Border.all(
                         color: dark
                             ? AppColors.darkBorder
-                            : AppColors.forestGreenMuda.withOpacity(0.45),
+                            : AppColors.forestGreenMuda.withValues(alpha: 0.45),
                       ),
                     ),
                     child: Icon(
@@ -469,13 +469,13 @@ class _SidebarItem extends StatelessWidget {
 
     final selectedBackground = dark
         ? AppColors.darkSurfaceAlt
-        : AppColors.forestGreen.withOpacity(0.12);
+        : AppColors.forestGreen.withValues(alpha: 0.12);
 
     final selectedText = dark ? AppColors.sageLight : AppColors.forestGreen;
 
     final selectedBorder = dark
-        ? AppColors.sage.withOpacity(0.45)
-        : AppColors.forestGreen.withOpacity(0.22);
+        ? AppColors.sage.withValues(alpha: 0.45)
+        : AppColors.forestGreen.withValues(alpha: 0.22);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
@@ -541,14 +541,14 @@ class _NatureDoodlePainter extends CustomPainter {
     final color = dark ? const Color(0xFF7FAE94) : const Color(0xFF8FA68B);
 
     final linePaint = Paint()
-      ..color = color.withOpacity(dark ? 0.30 : 0.34)
+      ..color = color.withValues(alpha: dark ? 0.30 : 0.34)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
     final fillPaint = Paint()
-      ..color = color.withOpacity(dark ? 0.12 : 0.16)
+      ..color = color.withValues(alpha: dark ? 0.12 : 0.16)
       ..style = PaintingStyle.fill;
 
     // Bukit dan gunung di bagian bawah sidebar.

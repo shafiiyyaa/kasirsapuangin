@@ -25,6 +25,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
   List<Map<String, dynamic>> _menu = [];
   bool _loading = true;
   String? _error;
+  bool _gridView = false; // false = daftar (list), true = kartu (grid)
 
   @override
   void initState() {
@@ -224,28 +225,48 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: TextField(
-              controller: _cari,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Cari nama menu...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding: EdgeInsets.zero,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _cari,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama menu...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      contentPadding: EdgeInsets.zero,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(color: AppColors.forestGreen),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.forestGreen),
+                const SizedBox(width: 8),
+                _tombolTampilan(
+                  ikon: Icons.view_list_rounded,
+                  tip: 'Tampilan daftar',
+                  aktif: !_gridView,
+                  onTap: () => setState(() => _gridView = false),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
+                _tombolTampilan(
+                  ikon: Icons.grid_view_rounded,
+                  tip: 'Tampilan kartu',
+                  aktif: _gridView,
+                  onTap: () => setState(() => _gridView = true),
                 ),
-              ),
+              ],
             ),
           ),
           const Padding(
@@ -327,10 +348,25 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
 
     final anak = <Widget>[];
     String? kategoriLalu;
+    var kelompok = <Map<String, dynamic>>[];
+
+    void tutupKelompok() {
+      if (kelompok.isEmpty) return;
+      if (_gridView) {
+        anak.add(_gridKelompok(List<Map<String, dynamic>>.from(kelompok)));
+      } else {
+        for (final item in kelompok) {
+          anak.add(_tile(item));
+        }
+      }
+      kelompok = <Map<String, dynamic>>[];
+    }
+
     for (final m in daftar) {
       final k = _kategori(m);
       final tampil = k.isEmpty ? 'Lainnya' : k;
       if (tampil != kategoriLalu) {
+        tutupKelompok();
         kategoriLalu = tampil;
         anak.add(Padding(
           padding: const EdgeInsets.fromLTRB(4, 18, 4, 6),
@@ -345,8 +381,9 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
           ),
         ));
       }
-      anak.add(_tile(m));
+      kelompok.add(m);
     }
+    tutupKelompok();
 
     return RefreshIndicator(
       color: AppColors.forestGreen,
@@ -354,6 +391,168 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
         children: anak,
+      ),
+    );
+  }
+
+  Widget _tombolTampilan({
+    required IconData ikon,
+    required String tip,
+    required bool aktif,
+    required VoidCallback onTap,
+  }) {
+    return IconButton(
+      tooltip: tip,
+      onPressed: onTap,
+      style: IconButton.styleFrom(
+        backgroundColor: aktif
+            ? AppColors.forestGreen.withValues(alpha: 0.14)
+            : Colors.transparent,
+        foregroundColor: aktif ? AppColors.forestGreen : Colors.black45,
+      ),
+      icon: Icon(ikon),
+    );
+  }
+
+  /// Satu kelompok kategori dalam tampilan kartu (grid).
+  Widget _gridKelompok(List<Map<String, dynamic>> items) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final lebar = constraints.maxWidth;
+        final kolom = lebar < 340
+            ? 1
+            : (lebar < 560 ? 2 : (lebar < 860 ? 3 : 4));
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: kolom,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            mainAxisExtent: 214,
+          ),
+          itemBuilder: (context, i) => _kartu(items[i]),
+        );
+      },
+    );
+  }
+
+  Widget _kartu(Map<String, dynamic> m) {
+    final habis = !_tersedia(m);
+    final url = (m['gambar_url'] ?? '').toString().trim();
+
+    final huruf = Center(
+      child: Text(
+        _nama(m).isNotEmpty ? _nama(m)[0].toUpperCase() : '?',
+        style: TextStyle(
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+          color: habis ? Colors.black26 : AppColors.forestGreen,
+        ),
+      ),
+    );
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => _bukaForm(m),
+        onLongPress: () => _hapusMenu(m),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: habis ? 0.45 : 1,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            color:
+                                AppColors.forestGreen.withValues(alpha: 0.08),
+                            child: url.isEmpty
+                                ? huruf
+                                : Image.network(
+                                    url,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    errorBuilder: (_, __, ___) => huruf,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (habis)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusBatal,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Habis',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _nama(m),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                _tipe(m).isEmpty ? _kategori(m) : _tipe(m),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: Colors.black45),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(_rupiah(_harga(m)),
+                          style: AppTextStyles.price),
+                    ),
+                  ),
+                  Switch(
+                    value: _tersedia(m),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    onChanged: (v) => _toggleTersedia(m, v),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1031,8 +1230,6 @@ class _FormMenuState extends State<_FormMenu> {
     );
   }
 }
-
-// ================= FORMAT RUPIAH DI INPUT =================
 
 class _FormatterRupiah extends TextInputFormatter {
   static String beriTitik(String digit) {
