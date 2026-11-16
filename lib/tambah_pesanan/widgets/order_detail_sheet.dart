@@ -109,59 +109,27 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
     }
   }
 
-  /// Tandai pesanan selesai / belum selesai (satu saklar sederhana).
+  /// Satu saklar: pesanan selesai = sudah diantar/diambil DAN sudah dibayar.
   Future<void> _ubahSelesai(Order sekarang, bool selesai) {
     return _jalankan(
       () async {
         final provider = context.read<OrderProvider>();
-        if (selesai) {
-          await provider.updateOrderStatus(sekarang.id, OrderStatus.selesai);
-          await provider.updateStatusPengantaran(
-            sekarang.id,
-            sudahDiantar: true,
-          );
-        } else {
-          await provider.updateStatusPengantaran(
-            sekarang.id,
-            sudahDiantar: false,
-          );
-          await provider.updateOrderStatus(sekarang.id, OrderStatus.baru);
-        }
+        await provider.updateStatusPembayaran(
+          sekarang.id,
+          sudahDibayar: selesai,
+        );
+        await provider.updateStatusPengantaran(
+          sekarang.id,
+          sudahDiantar: selesai,
+        );
+        await provider.updateOrderStatus(
+          sekarang.id,
+          selesai ? OrderStatus.selesai : OrderStatus.baru,
+        );
       },
       selesai
-          ? 'Pesanan ditandai selesai.'
+          ? 'Pesanan selesai dan sudah dibayar.'
           : 'Pesanan dikembalikan ke belum selesai.',
-    );
-  }
-
-  Future<void> _batalkan(Order sekarang) async {
-    final konfirmasi = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Batalkan pesanan?'),
-        content: Text(
-          'Pesanan ${sekarang.namaPelanggan ?? '-'} akan ditandai dibatalkan. '
-          'Pelanggan akan melihat statusnya berubah.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Tidak'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Ya, batalkan'),
-          ),
-        ],
-      ),
-    );
-
-    if (konfirmasi != true || !mounted) return;
-
-    await _jalankan(
-      () => batalkanPesanan(context, sekarang),
-      'Pesanan dibatalkan.',
     );
   }
 
@@ -228,37 +196,6 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
     }
   }
 
-  Future<void> _ubahPembayaran(
-    BuildContext context,
-    bool sudahDibayar,
-  ) async {
-    final provider = context.read<OrderProvider>();
-
-    try {
-      await provider.updateStatusPembayaran(
-        order.id,
-        sudahDibayar: sudahDibayar,
-      );
-
-      if (!context.mounted) return;
-
-      _notifikasi(
-        context,
-        pesan: sudahDibayar
-            ? 'Pembayaran berhasil ditandai sudah diterima.'
-            : 'Status pembayaran berhasil dikembalikan.',
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-
-      _notifikasi(
-        context,
-        pesan: 'Gagal memperbarui pembayaran: $error',
-        sukses: false,
-      );
-    }
-  }
-
   Widget _info(IconData ikon, String teks, ColorScheme scheme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -289,6 +226,7 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
 
         final sudahDibayar = currentOrder.statusPembayaran == 'dibayar';
         final langkah = langkahDari(currentOrder);
+        final selesai = langkah == LangkahPesanan.diantar && sudahDibayar;
         final takeaway = apakahTakeaway(currentOrder);
 
         return Container(
@@ -427,41 +365,24 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                       else
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                          padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerHighest
                                 .withValues(alpha: 0.55),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Column(
-                            children: [
-                              SwitchListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: const Text('Pesanan selesai'),
-                                subtitle: Text(
-                                  langkah == LangkahPesanan.diantar
-                                      ? 'Sudah selesai'
-                                      : 'Belum selesai',
-                                ),
-                                value: langkah == LangkahPesanan.diantar,
-                                onChanged: _sibuk
-                                    ? null
-                                    : (value) =>
-                                        _ubahSelesai(currentOrder, value),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: _sibuk
-                                      ? null
-                                      : () => _batalkan(currentOrder),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                  ),
-                                  child: const Text('Batalkan pesanan'),
-                                ),
-                              ),
-                            ],
+                          child: SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Pesanan selesai'),
+                            subtitle: Text(
+                              selesai
+                                  ? 'Sudah selesai dan sudah dibayar'
+                                  : 'Belum selesai',
+                            ),
+                            value: selesai,
+                            onChanged: _sibuk
+                                ? null
+                                : (value) => _ubahSelesai(currentOrder, value),
                           ),
                         ),
                       const SizedBox(height: 14),
@@ -499,19 +420,7 @@ class _OrderDetailSheetState extends State<OrderDetailSheet> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-
-                      // ===== PEMBAYARAN =====
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Pembayaran sudah diterima'),
-                        subtitle: Text(
-                          sudahDibayar ? 'Sudah dibayar' : 'Belum dibayar',
-                        ),
-                        value: sudahDibayar,
-                        onChanged: (value) => _ubahPembayaran(context, value),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
 
                       // ===== ITEM =====
                       const Text(
