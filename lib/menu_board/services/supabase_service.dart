@@ -144,6 +144,24 @@ class SupabaseService {
         diskon < 0 ? 0 : (diskon > subtotal ? subtotal : diskon);
     final totalHarga = subtotal - diskonAman;
 
+    // Salin harga modal (HPP) tiap menu saat ini ke pesanan, supaya laba
+    // pesanan lama tidak berubah walau modal menu diubah belakangan.
+    // Jika pencarian gagal (mis. kolom belum dibuat), pesanan tetap tersimpan.
+    final modalPerMenu = <String, int>{};
+    try {
+      final ids = items.map((e) => e.menuItemId).toSet().toList();
+      final rows = await client
+          .from('menu_items')
+          .select('id, harga_modal')
+          .inFilter('id', ids);
+      for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+        modalPerMenu[r['id'] as String] =
+            (r['harga_modal'] as num?)?.toInt() ?? 0;
+      }
+    } catch (_) {
+      modalPerMenu.clear();
+    }
+
     // Simpan data utama pesanan.
     final orderData = await client
         .from('orders')
@@ -177,6 +195,8 @@ class SupabaseService {
             'harga_satuan': item.hargaSatuan,
             'jumlah': item.jumlah,
             'catatan': item.catatan,
+            if (modalPerMenu.containsKey(item.menuItemId))
+              'harga_modal': modalPerMenu[item.menuItemId],
           },
         )
         .toList();
@@ -195,6 +215,7 @@ class SupabaseService {
             hargaSatuan: item.hargaSatuan,
             jumlah: item.jumlah,
             catatan: item.catatan,
+            hargaModal: modalPerMenu[item.menuItemId],
           ),
         )
         .toList();

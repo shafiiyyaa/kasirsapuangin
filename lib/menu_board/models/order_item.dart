@@ -6,9 +6,13 @@ class OrderItem {
   final String menuItemId;
   final String namaMenu; // disalin saat pesanan dibuat, biar nama tetap
   // muncul di riwayat walau menu aslinya diubah/dihapus belakangan
-  final int hargaSatuan; // harga per item saat pesanan dibuat
+  final int hargaSatuan; // harga jual per item saat pesanan dibuat
   final int jumlah;
   final String? catatan; // mis. "pedas", "tanpa es"
+
+  /// Harga modal (HPP) per item saat pesanan dibuat.
+  /// null = pesanan lama (belum tercatat); statistik memakai modal menu saat ini.
+  final int? hargaModal;
 
   const OrderItem({
     required this.id,
@@ -18,6 +22,7 @@ class OrderItem {
     required this.hargaSatuan,
     required this.jumlah,
     this.catatan,
+    this.hargaModal,
   });
 
   int get subtotal => hargaSatuan * jumlah;
@@ -31,6 +36,7 @@ class OrderItem {
       hargaSatuan: map['harga_satuan'] as int,
       jumlah: map['jumlah'] as int,
       catatan: map['catatan'] as String?,
+      hargaModal: (map['harga_modal'] as num?)?.toInt(),
     );
   }
 
@@ -43,6 +49,7 @@ class OrderItem {
       'harga_satuan': hargaSatuan,
       'jumlah': jumlah,
       'catatan': catatan,
+      'harga_modal': hargaModal,
     };
   }
 
@@ -56,10 +63,11 @@ class OrderItem {
       'harga_satuan': hargaSatuan,
       'jumlah': jumlah,
       'catatan': catatan,
+      if (hargaModal != null) 'harga_modal': hargaModal,
     };
   }
 
-  OrderItem copyWith({int? jumlah, String? catatan}) {
+  OrderItem copyWith({int? jumlah, String? catatan, int? hargaModal}) {
     return OrderItem(
       id: id,
       orderId: orderId,
@@ -68,6 +76,7 @@ class OrderItem {
       hargaSatuan: hargaSatuan,
       jumlah: jumlah ?? this.jumlah,
       catatan: catatan ?? this.catatan,
+      hargaModal: hargaModal ?? this.hargaModal,
     );
   }
 }

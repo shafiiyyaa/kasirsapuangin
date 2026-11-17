@@ -1,31 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../l10n/bahasa.dart';
+import '../../../menu_board/providers/theme_provider.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_scaffold.dart';
 import 'diskon_pengaturan_card.dart';
 import 'karyawan_pengaturan_card.dart';
-import 'package:provider/provider.dart';
-import '../../../menu_board/providers/theme_provider.dart';
-
-// PENTING: samain 2 import di bawah ini dengan path theme yang dipake
-// file lain di project kamu (tinggal copy dari dashboard_screen.dart).
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-
 
 class PengaturanScreen extends StatelessWidget {
   const PengaturanScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild otomatis saat bahasa diganti.
+    final bahasa = context.watch<Bahasa>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppScaffold.isWide(context) ? null : AppBar(
-        title: const Text('Pengaturan'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          tooltip: 'Buka menu',
-          onPressed: () => AppScaffold.openMenu(context),
-        ),
-      ),
+      appBar: AppScaffold.isWide(context)
+          ? null
+          : AppBar(
+              title: Text(tr('Pengaturan')),
+              leading: IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: tr('Buka menu'),
+                onPressed: () => AppScaffold.openMenu(context),
+              ),
+            ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         children: [
@@ -58,9 +61,12 @@ class PengaturanScreen extends StatelessWidget {
                             .copyWith(color: Colors.white),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Kasir Sapuangin • versi 1.0.0',
-                        style: TextStyle(fontSize: 12, color: Colors.white70),
+                      Text(
+                        tr('Kasir Sapuangin • versi 1.0.0'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
                       ),
                     ],
                   ),
@@ -71,29 +77,79 @@ class PengaturanScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ===== diskon =====
-          _judul('DISKON'),
+          _judul(tr('DISKON')),
           _kartu(const DiskonPengaturanCard()),
           const SizedBox(height: 24),
 
           // ===== akun karyawan =====
-          _judul('AKUN KARYAWAN'),
+          _judul(tr('AKUN KARYAWAN')),
           _kartu(const KaryawanPengaturanCard()),
           const SizedBox(height: 24),
 
+          // ===== bahasa =====
+          _judul(tr('BAHASA')),
+          _kartu(
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('Bahasa aplikasi'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    tr('Pilih bahasa tampilan aplikasi dan struk.'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: 'id', label: Text('Indonesia')),
+                        ButtonSegment(value: 'en', label: Text('English')),
+                      ],
+                      selected: {bahasa.kode},
+                      onSelectionChanged: (pilihan) =>
+                          context.read<Bahasa>().atur(pilihan.first),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // ===== tampilan =====
-          _judul('TAMPILAN'),
+          _judul(tr('TAMPILAN')),
           _kartu(
             Consumer<ThemeProvider>(
               builder: (context, themeProvider, _) {
                 final gelap = themeProvider.themeMode == ThemeMode.dark;
                 return SwitchListTile(
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   secondary: _ikon(gelap ? Icons.dark_mode : Icons.light_mode),
-                  title: const Text('Mode Gelap / Terang',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  title: Text(
+                    tr('Mode Gelap / Terang'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
                   subtitle: Text(
-                    gelap ? 'Mode gelap aktif' : 'Mode terang aktif',
+                    gelap ? tr('Mode gelap aktif') : tr('Mode terang aktif'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -109,31 +165,43 @@ class PengaturanScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ===== tentang =====
-          _judul('TENTANG'),
+          _judul(tr('TENTANG')),
           _kartu(
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Kasir Sapuangin',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                  SizedBox(height: 4),
                   Text(
-                    'Aplikasi Kasir Sapuangin dibuat untuk membantu pekerjaan kasir Sapuangin Coffee & Farm: mencatat pesanan, mengelola menu, serta mencatat keuangan agar transparan dan mudah diperiksa.',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.black54, height: 1.5),
+                    tr('Kasir Sapuangin'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    tr(
+                      'Aplikasi Kasir Sapuangin dibuat untuk membantu pekerjaan '
+                      'kasir Sapuangin Coffee & Farm: mencatat pesanan, '
+                      'mengelola menu, serta mencatat keuangan agar transparan '
+                      'dan mudah diperiksa.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 24),
-          const Center(
+          Center(
             child: Text(
-              'Dirancang khusus untuk Sapuangin Coffee & Farm',
-              style: TextStyle(fontSize: 11, color: Colors.black38),
+              tr('Dirancang khusus untuk Sapuangin Coffee & Farm'),
+              style: const TextStyle(fontSize: 11, color: Colors.black38),
             ),
           ),
         ],

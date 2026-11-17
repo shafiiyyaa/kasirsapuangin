@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'l10n/bahasa.dart';
 import 'menu_board/providers/auth_provider.dart';
 import 'menu_board/providers/menu_provider.dart';
 import 'menu_board/providers/order_provider.dart';
@@ -42,6 +43,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        ChangeNotifierProvider<Bahasa>.value(value: Bahasa.instance),
         ChangeNotifierProvider(create: (_) => MenuProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
