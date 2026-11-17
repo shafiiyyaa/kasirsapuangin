@@ -17,6 +17,7 @@ import 'tambah_pesanan/screens/dashboard/dashboard_screen.dart';
 import 'tambah_pesanan/screens/login/login_screen.dart';
 import 'tambah_pesanan/screens/order/add_order_screen.dart';
 import 'tambah_pesanan/screens/order_history/order_history_screen.dart';
+import 'tambah_pesanan/screens/pengeluaran/pengeluaran_screen.dart';
 import 'tambah_pesanan/screens/pengaturan/kelola_menu_screen.dart';
 import 'tambah_pesanan/screens/pengaturan/pengaturan_screen.dart';
 import 'tambah_pesanan/screens/statistik/statistik_screen.dart';
@@ -202,6 +203,14 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const AppScaffold(
         currentIndex: 3,
         child: StatistikScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/pengeluaran',
+      name: 'pengeluaran',
+      builder: (context, state) => const AppScaffold(
+        currentIndex: 5,
+        child: PengeluaranScreen(),
       ),
     ),
     GoRoute(

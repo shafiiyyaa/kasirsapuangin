@@ -8,7 +8,7 @@ import '../../theme/app_text_styles.dart';
 
 class AppScaffold extends StatefulWidget {
   /// 0 = Dashboard, 1 = Kelola Menu, 2 = Riwayat,
-  /// 3 = Statistik, 4 = Pengaturan.
+  /// 3 = Statistik, 4 = Pengaturan, 5 = Pengeluaran.
   final int currentIndex;
   final Widget child;
 
@@ -306,6 +306,13 @@ class _SidebarContent extends StatelessWidget {
                       selected: currentIndex == 3,
                       dark: dark,
                       onTap: () => _navigate(context, '/statistik'),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: 'Pengeluaran',
+                      selected: currentIndex == 5,
+                      dark: dark,
+                      onTap: () => _navigate(context, '/pengeluaran'),
                     ),
                     _SidebarItem(
                       icon: Icons.settings_rounded,
