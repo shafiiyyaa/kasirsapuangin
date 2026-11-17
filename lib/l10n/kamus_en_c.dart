@@ -10,7 +10,7 @@ const Map<String, String> kamusEnC = {
   'Total Diskon ({n} pesanan)': 'Total Discount ({n} orders)',
   'Pendapatan (setelah diskon)': 'Revenue (after discount)',
   'Total Modal (HPP)': 'Total Cost (COGS)',
-  'Laba Bersih ({p}% dari pendapatan)': 'Net Profit ({p}% of revenue)',
+  'Laba': 'Profit',
   '{n} menu yang terjual belum diisi modalnya, jadi laba bisa terlihat lebih besar dari sebenarnya. Isi di Kelola Menu.':
       '{n} sold menu items have no cost set, so profit may look higher than it really is. Fill it in under Manage Menu.',
 

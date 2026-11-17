@@ -36,7 +36,7 @@ class NotifikasiPesanan {
   /// Nada yang dipakai. Isi dengan nama salah satu file di assets/sounds/:
   /// 'bel_ketuk.wav', 'dering_telepon.wav', 'alarm_beep.wav', 'sirine.wav',
   /// 'ting_tong_keras.wav', atau 'ding_dong_lembut.wav'.
-  static const String _fileSuara = 'assets/sounds/pesanan_masuk.wav';
+  static const String _fileSuara = 'pesanan_masuk.wav';
 
   final AudioPlayer _player = AudioPlayer();
   final Set<String> _sudahDiberitahu = {};

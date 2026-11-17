@@ -367,10 +367,9 @@ class _LabaPerMenuViewState extends State<LabaPerMenuView> {
 
   List<Widget> _ringkasanKartu() {
     final laba = _hitungLaba();
-    final labaBersih = laba.pendapatan - laba.totalModal;
-    final persen = laba.pendapatan > 0
-        ? (labaBersih / laba.pendapatan * 100).toStringAsFixed(0)
-        : '0';
+
+    // Laba = Pendapatan - Total Modal (HPP). Tanpa biaya lain.
+    final labaTotal = laba.pendapatan - laba.totalModal;
 
     return [
       _KartuRingkas(
@@ -384,9 +383,9 @@ class _LabaPerMenuViewState extends State<LabaPerMenuView> {
         warna: AppColors.statusBatal,
       ),
       _KartuRingkas(
-        label: tr('Laba Bersih ({p}% dari pendapatan)', {'p': persen}),
-        nilai: labaBersih,
-        warna: labaBersih >= 0
+        label: tr('Laba'),
+        nilai: labaTotal,
+        warna: labaTotal >= 0
             ? AppColors.forestGreenDark
             : AppColors.statusBatal,
       ),
