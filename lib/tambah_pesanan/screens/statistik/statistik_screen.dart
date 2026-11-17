@@ -8,6 +8,7 @@ import '../../../menu_board/models/menu_item.dart';
 import '../../../menu_board/models/order.dart';
 import '../../../menu_board/services/supabase_service.dart';
 import '../../../theme/app_theme.dart';
+import 'laba_per_menu_view.dart';
 import 'rekap_produksi.dart';
 
 const _namaBulan = [
@@ -76,11 +77,8 @@ class _StatistikScreenState extends State<StatistikScreen> {
   bool _loading = true;
   String? _error;
 
-  // 0 = Ringkasan, 1 = Produksi & Best Seller
+  // 0 = Ringkasan, 1 = Produksi & Best Seller, 2 = Laba per Menu
   int _tab = 0;
-
-  // false = tampilkan 10 menu teratas saja
-  bool _semuaMenu = false;
 
   @override
   void initState() {
@@ -127,7 +125,6 @@ class _StatistikScreenState extends State<StatistikScreen> {
   void _gantiBulan(int delta) {
     setState(() {
       _bulan = DateTime(_bulan.year, _bulan.month + delta);
-      _semuaMenu = false;
     });
     _muat();
   }
@@ -253,6 +250,11 @@ class _StatistikScreenState extends State<StatistikScreen> {
                     icon: const Icon(Icons.local_fire_department_outlined),
                     label: Text(tr('Produksi & Terlaris')),
                   ),
+                  ButtonSegment(
+                    value: 2,
+                    icon: const Icon(Icons.savings_outlined),
+                    label: Text(tr('Laba per Menu')),
+                  ),
                 ],
                 selected: {_tab},
                 onSelectionChanged: (pilihan) =>
@@ -262,6 +264,8 @@ class _StatistikScreenState extends State<StatistikScreen> {
             const SizedBox(height: 12),
             if (_tab == 1)
               const RekapProduksiView()
+            else if (_tab == 2)
+              const LabaPerMenuView()
             else
               ..._ringkasan(),
           ],
@@ -303,8 +307,6 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final labaBersih = pendapatan - laba.totalModal;
     final persenLaba =
         pendapatan > 0 ? (labaBersih / pendapatan * 100).toStringAsFixed(0) : '0';
-    final menuTampil =
-        _semuaMenu ? laba.perMenu : laba.perMenu.take(10).toList();
 
     return [
       // ----- Pemilih bulan -----
@@ -393,27 +395,18 @@ class _StatistikScreenState extends State<StatistikScreen> {
         for (final b in laba.perKategori) _BarisLaba(baris: b),
       const SizedBox(height: 16),
 
-      // ----- Laba per menu -----
-      Text(tr('Laba per Menu'), style: AppTextStyles.displayMedium),
-      const SizedBox(height: 4),
-      if (laba.perMenu.isEmpty)
-        _kosong(tr('Belum ada penjualan bulan ini.'))
-      else ...[
-        for (final b in menuTampil) _BarisLaba(baris: b),
-        if (laba.perMenu.length > 10)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: () => setState(() => _semuaMenu = !_semuaMenu),
-              child: Text(
-                _semuaMenu
-                    ? tr('Tampilkan lebih sedikit')
-                    : tr('Tampilkan semua ({n} menu)',
-                        {'n': laba.perMenu.length}),
-              ),
-            ),
-          ),
-      ],
+      // ----- Rincian laba per menu (sekarang ada di tab sendiri) -----
+      // Daftar panjang per menu dipindah ke tab "Laba per Menu" supaya
+      // tab Ringkasan tidak terlalu panjang saat di-scroll. Tombol ini
+      // menggantikan list plus tombol "tampilkan semua" yang lama.
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => setState(() => _tab = 2),
+          icon: const Icon(Icons.manage_search_rounded, size: 18),
+          label: Text(tr('Lihat rincian laba per menu')),
+        ),
+      ),
       const SizedBox(height: 16),
 
       // ----- Rincian pembayaran -----

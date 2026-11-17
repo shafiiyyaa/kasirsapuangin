@@ -52,4 +52,23 @@ const Map<String, String> kamusEnC = {
   'Jum': 'Fri',
   'Sab': 'Sat',
   'Min': 'Sun',
+
+  // Tab "Laba per Menu" (tab baru supaya daftar per menu tidak
+  // memanjang di tab Ringkasan).
+  'Lihat rincian laba per menu': 'View profit-by-menu details',
+  'Harian': 'Daily',
+  'Bulanan': 'Monthly',
+  'Tahunan': 'Yearly',
+  'Tahun': 'Year',
+  'Per Menu': 'Per Menu',
+  'Per Kategori': 'Per Category',
+  'Semua kategori': 'All categories',
+  'Cari nama menu...': 'Search menu name...',
+  'Hapus pencarian': 'Clear search',
+  'Pendapatan': 'Revenue',
+  'Belum ada penjualan pada periode ini.': 'No sales in this period yet.',
+  'Tidak ada yang cocok dengan filter.': 'Nothing matches the filter.',
+  '{n} baris': '{n} rows',
+  '{n} menu belum diisi modalnya. Laba bisa terlihat lebih besar dari sebenarnya.':
+      '{n} menu items have no cost set. Profit may look higher than it really is.',
 };

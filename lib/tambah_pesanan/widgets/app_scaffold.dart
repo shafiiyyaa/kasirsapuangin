@@ -319,69 +319,12 @@ class _SidebarContent extends StatelessWidget {
               ),
             ),
 
-            // AKUN
-            Padding(
-              padding: const EdgeInsets.fromLTRB(17, 6, 17, 8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-                decoration: BoxDecoration(
-                  color:
-                      dark ? AppColors.darkSurface : AppColors.lightSurfaceAlt,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isAdmin
-                          ? Icons.admin_panel_settings_rounded
-                          : Icons.badge_rounded,
-                      color: accent,
-                      size: 21,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            auth.profil?.nama ?? '-',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: primaryText,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            isAdmin ? 'Admin' : 'Kasir',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: secondaryText,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Keluar',
-                      onPressed: () => _keluar(context),
-                      icon: Icon(
-                        Icons.logout_rounded,
-                        color: secondaryText,
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             // DOODLE ALAM
+            // Dipasang di atas blok akun supaya nama akun (admin/kasir)
+            // menempel langsung ke quote pendek di bawahnya, dan doodle
+            // mengisi ruang yang tadinya terlihat kosong.
             SizedBox(
-              height: 128,
+              height: 172,
               width: double.infinity,
               child: CustomPaint(
                 painter: _NatureDoodlePainter(
@@ -391,50 +334,111 @@ class _SidebarContent extends StatelessWidget {
               ),
             ),
 
-            // FOOTER
+            // AKUN + QUOTE DIPASANG MENEMPEL
+            // Blok akun (nama + peran admin/kasir) dan quote singkat
+            // ("Racik dengan hati.") disatukan dalam satu wadah supaya
+            // selalu berdekatan, terlepas dari peran yang login.
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                17,
-                0,
-                17,
-                16,
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 13,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      dark ? AppColors.darkSurface : AppColors.lightSurfaceAlt,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.local_cafe_outlined,
-                      color: accent,
-                      size: 21,
+              padding: const EdgeInsets.fromLTRB(17, 6, 17, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                    decoration: BoxDecoration(
+                      color: dark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurfaceAlt,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: border),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Racik dengan hati.',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: primaryText,
-                          fontSize: 12,
+                    child: Row(
+                      children: [
+                        Icon(
+                          isAdmin
+                              ? Icons.admin_panel_settings_rounded
+                              : Icons.badge_rounded,
+                          color: accent,
+                          size: 21,
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                auth.profil?.nama ?? '-',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: primaryText,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                isAdmin ? 'Admin' : 'Kasir',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: secondaryText,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Keluar',
+                          onPressed: () => _keluar(context),
+                          icon: Icon(
+                            Icons.logout_rounded,
+                            color: secondaryText,
+                            size: 20,
+                          ),
+                        ),
+                      ],
                     ),
-                    Icon(
-                      Icons.eco_outlined,
-                      color: accent,
-                      size: 20,
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 13,
                     ),
-                  ],
-                ),
+                    decoration: BoxDecoration(
+                      color: dark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurfaceAlt,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_cafe_outlined,
+                          color: accent,
+                          size: 21,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Racik dengan hati.',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: primaryText,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.eco_outlined,
+                          color: accent,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
