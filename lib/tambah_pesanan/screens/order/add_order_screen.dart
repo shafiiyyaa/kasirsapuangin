@@ -302,7 +302,6 @@ class _CartSheetState extends State<_CartSheet> {
   static const Map<String, String> _labelMetode = {
     'cash': 'Cash',
     'qris': 'QRIS',
-    'transfer': 'Transfer',
   };
 
   late final TextEditingController _kasirC;

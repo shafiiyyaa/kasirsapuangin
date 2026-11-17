@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../l10n/bahasa.dart';
-import '../../../menu_board/providers/theme_provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_scaffold.dart';
@@ -121,41 +120,6 @@ class PengaturanScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // ===== tampilan =====
-          _judul(tr('TAMPILAN')),
-          _kartu(
-            Consumer<ThemeProvider>(
-              builder: (context, themeProvider, _) {
-                final gelap = themeProvider.themeMode == ThemeMode.dark;
-                return SwitchListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  secondary: _ikon(gelap ? Icons.dark_mode : Icons.light_mode),
-                  title: Text(
-                    tr('Mode Gelap / Terang'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  subtitle: Text(
-                    gelap ? tr('Mode gelap aktif') : tr('Mode terang aktif'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  value: gelap,
-                  activeThumbColor: AppColors.forestGreen,
-                  onChanged: (_) => themeProvider.toggleTheme(),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-
           // ===== tentang =====
           _judul(tr('TENTANG')),
           _kartu(
@@ -223,12 +187,6 @@ class PengaturanScreen extends StatelessWidget {
           side: const BorderSide(color: AppColors.border),
         ),
         child: anak,
-      );
-
-  Widget _ikon(IconData data) => CircleAvatar(
-        radius: 22,
-        backgroundColor: AppColors.forestGreen.withValues(alpha: 0.12),
-        child: Icon(data, color: AppColors.forestGreen, size: 22),
       );
 }
 

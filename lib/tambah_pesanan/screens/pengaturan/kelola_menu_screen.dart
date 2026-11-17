@@ -27,6 +27,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
   bool _loading = true;
   String? _error;
   bool _gridView = false; // false = daftar (list), true = kartu (grid)
+  String? _kategoriTerpilih; // null = "Semua"
 
   @override
   void initState() {
@@ -59,8 +60,11 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
 
   List<Map<String, dynamic>> get _hasil {
     final q = _cari.text.trim().toLowerCase();
-    if (q.isEmpty) return _menu;
-    return _menu
+    final byKategori = _kategoriTerpilih == null
+        ? _menu
+        : _menu.where((m) => _kategori(m) == _kategoriTerpilih);
+    if (q.isEmpty) return byKategori.toList();
+    return byKategori
         .where((m) =>
             _nama(m).toLowerCase().contains(q) ||
             _kategori(m).toLowerCase().contains(q))
@@ -201,26 +205,23 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.forestGreen,
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        leading: AppScaffold.isWide(context)
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.menu),
+      appBar: AppScaffold.isWide(context)
+          ? null
+          : AppBar(
+              title: Text(tr('Kelola Menu')),
+              leading: IconButton(
+                icon: const Icon(Icons.menu_rounded),
                 tooltip: tr('Buka menu'),
                 onPressed: () => AppScaffold.openMenu(context),
               ),
-        title: Text(tr('Kelola Menu')),
-        actions: [
-          IconButton(
-            onPressed: _muat,
-            icon: const Icon(Icons.refresh),
-            tooltip: tr('Muat ulang'),
-          ),
-        ],
-      ),
+              actions: [
+                IconButton(
+                  onPressed: _muat,
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: tr('Muat ulang'),
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _bukaForm(),
         backgroundColor: AppColors.forestGreen,
@@ -276,21 +277,29 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, size: 13, color: Colors.black38),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    tr('Ketuk buat edit • geser switch buat tandai habis • tahan buat hapus'),
-                    style: const TextStyle(fontSize: 11, color: Colors.black38),
+          if (_kategoriUnik.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _CategoryChip(
+                    label: tr('Semua'),
+                    icon: Icons.grid_view_rounded,
+                    selected: _kategoriTerpilih == null,
+                    onTap: () => setState(() => _kategoriTerpilih = null),
                   ),
-                ),
-              ],
+                  for (final k in _kategoriUnik)
+                    _CategoryChip(
+                      label: k,
+                      icon: _iconForCategory(k),
+                      selected: _kategoriTerpilih == k,
+                      onTap: () => setState(() => _kategoriTerpilih = k),
+                    ),
+                ],
+              ),
             ),
-          ),
           Expanded(child: _isi()),
         ],
       ),
@@ -354,51 +363,30 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       );
     }
 
-    final anak = <Widget>[];
-    String? kategoriLalu;
-    var kelompok = <Map<String, dynamic>>[];
-
-    void tutupKelompok() {
-      if (kelompok.isEmpty) return;
-      if (_gridView) {
-        anak.add(_gridKelompok(List<Map<String, dynamic>>.from(kelompok)));
-      } else {
-        for (final item in kelompok) {
-          anak.add(_tile(item));
-        }
-      }
-      kelompok = <Map<String, dynamic>>[];
-    }
-
-    for (final m in daftar) {
-      final k = _kategori(m);
-      final tampil = k.isEmpty ? tr('Lainnya') : k;
-      if (tampil != kategoriLalu) {
-        tutupKelompok();
-        kategoriLalu = tampil;
-        anak.add(Padding(
-          padding: const EdgeInsets.fromLTRB(4, 18, 4, 6),
-          child: Text(
-            tampil.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-              color: AppColors.forestGreenDark,
-            ),
+    if (_gridView) {
+      return RefreshIndicator(
+        color: AppColors.forestGreen,
+        onRefresh: _muat,
+        child: GridView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 260,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            mainAxisExtent: 234,
           ),
-        ));
-      }
-      kelompok.add(m);
+          itemCount: daftar.length,
+          itemBuilder: (context, i) => _kartu(daftar[i]),
+        ),
+      );
     }
-    tutupKelompok();
 
     return RefreshIndicator(
       color: AppColors.forestGreen,
       onRefresh: _muat,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
-        children: anak,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+        children: [for (final item in daftar) _tile(item)],
       ),
     );
   }
@@ -419,31 +407,6 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
         foregroundColor: aktif ? AppColors.forestGreen : Colors.black45,
       ),
       icon: Icon(ikon),
-    );
-  }
-
-  /// Satu kelompok kategori dalam tampilan kartu (grid).
-  Widget _gridKelompok(List<Map<String, dynamic>> items) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final lebar = constraints.maxWidth;
-        final kolom = lebar < 340
-            ? 1
-            : (lebar < 560 ? 2 : (lebar < 860 ? 3 : 4));
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: kolom,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            mainAxisExtent: 234,
-          ),
-          itemBuilder: (context, i) => _kartu(items[i]),
-        );
-      },
     );
   }
 
@@ -687,6 +650,117 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       ),
     );
   }
+}
+
+/// Chip kategori — replika tampilan dari dashboard biar Kelola Menu dan
+/// Dashboard seragam. Kotak bulat dengan ikon + label; yang terpilih
+/// berlatar hijau.
+class _CategoryChip extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  State<_CategoryChip> createState() => _CategoryChipState();
+}
+
+class _CategoryChipState extends State<_CategoryChip> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final selected = widget.selected;
+    final background = selected
+        ? scheme.primary
+        : (_hovered ? scheme.primary.withValues(alpha: 0.08) : scheme.surface);
+    final foreground = selected ? scheme.onPrimary : scheme.primary;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        width: 88,
+        height: 72,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outlineVariant,
+          ),
+          boxShadow: _hovered && !selected
+              ? [
+                  BoxShadow(
+                    color: scheme.primary.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : const [],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(widget.icon, size: 23, color: foreground),
+                  const SizedBox(height: 5),
+                  Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: foreground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pilih ikon kategori berdasarkan nama (sama seperti di dashboard).
+IconData _iconForCategory(String category) {
+  final value = category.toLowerCase();
+  if (value.contains('coffee')) return Icons.coffee_rounded;
+  if (value.contains('non coffee') || value.contains('non-coffee')) {
+    return Icons.local_drink_rounded;
+  }
+  if (value.contains('milk')) return Icons.local_cafe_rounded;
+  if (value.contains('manual brew') || value.contains('brew')) {
+    return Icons.coffee_maker_rounded;
+  }
+  if (value.contains('snack')) return Icons.lunch_dining_rounded;
+  if (value.contains('camilan')) return Icons.bakery_dining_rounded;
+  if (value.contains('food') || value.contains('makanan')) {
+    return Icons.restaurant_rounded;
+  }
+  if (value.contains('dessert') || value.contains('roti')) {
+    return Icons.cake_rounded;
+  }
+  return Icons.restaurant_menu_rounded;
 }
 
 // ================= FORM TAMBAH / EDIT =================

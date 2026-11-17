@@ -38,7 +38,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _kasirController.text = order.kasir;
       _namaController.text = order.namaPelanggan;
       _mejaController.text = order.meja;
-      _metodePembayaran = order.metodePembayaran;
+      // 'transfer' sudah dihapus dari pilihan pembayaran; pesanan lama yang
+      // masih 'transfer' dianggap 'cash' supaya dropdown tetap valid.
+      final m = order.metodePembayaran;
+      _metodePembayaran = (m == 'cash' || m == 'qris') ? m : 'cash';
       _loadData();
     });
     _searchController.addListener(() {
@@ -615,8 +618,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       items: const [
                         DropdownMenuItem(value: 'cash', child: Text('Cash')),
                         DropdownMenuItem(value: 'qris', child: Text('QRIS')),
-                        DropdownMenuItem(
-                            value: 'transfer', child: Text('Transfer')),
                       ],
                       onChanged: (value) {
                         if (value != null) {

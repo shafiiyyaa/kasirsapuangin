@@ -63,6 +63,7 @@ const Map<String, String> kamusEnC = {
   'Per Menu': 'Per Menu',
   'Per Kategori': 'Per Category',
   'Semua kategori': 'All categories',
+  'Semua': 'All',
   'Cari nama menu...': 'Search menu name...',
   'Hapus pencarian': 'Clear search',
   'Pendapatan': 'Revenue',

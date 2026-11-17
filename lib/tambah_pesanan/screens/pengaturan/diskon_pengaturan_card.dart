@@ -47,7 +47,6 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
   final _labelC = TextEditingController();
 
   bool _aktif = false;
-  String _tipe = 'persen';
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -77,10 +76,9 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
       if (!mounted) return;
       setState(() {
         _aktif = s.aktif;
-        _tipe = s.tipe;
-        _nilaiC.text = s.nilai > 0
-            ? (s.persen ? s.nilai.toString() : _ribuan(s.nilai.toString()))
-            : '';
+        // Tipe diskon selalu nominal (Rp). Pilihan Persen (%) sudah
+        // dihapus sesuai permintaan; diskon selalu berupa potongan tetap.
+        _nilaiC.text = s.nilai > 0 ? _ribuan(s.nilai.toString()) : '';
         _labelC.text = s.label ?? '';
         _error = null;
         _loading = false;
@@ -105,18 +103,10 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
 
   DiskonSetting get _draft => DiskonSetting(
         aktif: _aktif,
-        tipe: _tipe,
+        tipe: 'nominal',
         nilai: _nilaiAngka,
         label: _labelC.text.trim().isEmpty ? null : _labelC.text.trim(),
       );
-
-  void _gantiTipe(String tipeBaru) {
-    setState(() {
-      _tipe = tipeBaru;
-      final digit = _nilaiC.text.replaceAll('.', '');
-      _nilaiC.text = tipeBaru == 'nominal' ? _ribuan(digit) : digit;
-    });
-  }
 
   Future<void> _simpan() async {
     final d = _draft;
@@ -128,13 +118,7 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
       );
       return;
     }
-    if (d.persen && d.nilai > 100) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Diskon persen maksimal 100%.')),
-      );
-      return;
-    }
-    if (!d.persen && d.nilai > 100000000) {
+    if (d.nilai > 100000000) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Diskon nominal terlalu besar.')),
       );
@@ -188,11 +172,9 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
       );
     }
 
-    final nominal = _tipe == 'nominal';
-
     final contoh = DiskonSetting(
       aktif: true,
-      tipe: _tipe,
+      tipe: 'nominal',
       nilai: _nilaiAngka,
     ).hitung(100000);
 
@@ -215,36 +197,17 @@ class _DiskonPengaturanCardState extends State<DiskonPengaturanCard> {
             activeThumbColor: AppColors.forestGreen,
             onChanged: (v) => setState(() => _aktif = v),
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<String>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: 'persen', label: Text('Persen (%)')),
-                ButtonSegment(value: 'nominal', label: Text('Nominal (Rp)')),
-              ],
-              selected: {_tipe},
-              onSelectionChanged: (p) => _gantiTipe(p.first),
-            ),
-          ),
           const SizedBox(height: 12),
           TextField(
             controller: _nilaiC,
             keyboardType: TextInputType.number,
-            inputFormatters: nominal
-                ? [_FormatterRibuan()]
-                : [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(3),
-                  ],
+            inputFormatters: [_FormatterRibuan()],
             onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: nominal ? 'Besar diskon (Rp)' : 'Besar diskon (%)',
-              hintText: nominal ? 'contoh: 5.000' : 'contoh: 10',
-              prefixText: nominal ? 'Rp ' : null,
-              suffixText: nominal ? null : '%',
-              border: const OutlineInputBorder(),
+            decoration: const InputDecoration(
+              labelText: 'Besar diskon (Rp)',
+              hintText: 'contoh: 5.000',
+              prefixText: 'Rp ',
+              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),

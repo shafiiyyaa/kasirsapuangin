@@ -457,7 +457,7 @@ class _LabaPerMenuViewState extends State<LabaPerMenuView> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _kategoriTerpilih,
+                  initialValue: _kategoriTerpilih,
                   isExpanded: true,
                   decoration: InputDecoration(
                     isDense: true,
