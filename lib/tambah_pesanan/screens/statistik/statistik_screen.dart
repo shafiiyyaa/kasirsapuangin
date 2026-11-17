@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../widgets/app_scaffold.dart';
 
+import '../../../l10n/bahasa.dart';
+import '../../../menu_board/models/menu_item.dart';
 import '../../../menu_board/models/order.dart';
 import '../../../menu_board/services/supabase_service.dart';
 import '../../../theme/app_theme.dart';
@@ -22,6 +26,42 @@ const _namaBulan = [
 ];
 const _hariPendek = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
+/// Format angka dengan titik ribuan: 15000 -> 15.000
+String _rp(int n) => n
+    .toString()
+    .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+
+/// Satu baris hasil laba (untuk satu menu atau satu kategori).
+class _LabaBaris {
+  _LabaBaris(this.nama);
+
+  final String nama;
+  int terjual = 0;
+
+  /// Pendapatan setelah diskon dibagi rata sesuai porsi harga tiap item.
+  double pendapatan = 0;
+  int modal = 0;
+
+  int get pendapatanBulat => pendapatan.round();
+  int get laba => pendapatanBulat - modal;
+}
+
+class _HasilLaba {
+  const _HasilLaba({
+    required this.perMenu,
+    required this.perKategori,
+    required this.totalModal,
+    required this.menuTanpaModal,
+  });
+
+  final List<_LabaBaris> perMenu;
+  final List<_LabaBaris> perKategori;
+  final int totalModal;
+
+  /// Menu yang terjual tapi modalnya belum diisi (laba jadi terlihat lebih besar).
+  final Set<String> menuTanpaModal;
+}
+
 class StatistikScreen extends StatefulWidget {
   const StatistikScreen({super.key});
 
@@ -32,11 +72,15 @@ class StatistikScreen extends StatefulWidget {
 class _StatistikScreenState extends State<StatistikScreen> {
   late DateTime _bulan; // tanggal 1 bulan yang sedang dilihat
   List<Order> _orders = [];
+  Map<String, MenuItem> _menuById = {};
   bool _loading = true;
   String? _error;
 
   // 0 = Ringkasan, 1 = Produksi & Best Seller
   int _tab = 0;
+
+  // false = tampilkan 10 menu teratas saja
+  bool _semuaMenu = false;
 
   @override
   void initState() {
@@ -55,28 +99,40 @@ class _StatistikScreenState extends State<StatistikScreen> {
       final awal = DateTime(_bulan.year, _bulan.month, 1);
       final akhir = DateTime(_bulan.year, _bulan.month + 1, 1);
       final orders = await SupabaseService.fetchOrdersPeriode(awal, akhir);
+
+      // Daftar menu dipakai untuk kategori, dan sebagai modal cadangan
+      // untuk pesanan lama yang belum menyimpan modal. Kalau gagal dimuat,
+      // statistik tetap tampil (tanpa kategori).
+      var menu = <String, MenuItem>{};
+      try {
+        final daftar = await SupabaseService.fetchMenuItems();
+        menu = {for (final m in daftar) m.id: m};
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _orders = orders;
+        _menuById = menu;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Gagal memuat statistik: $e';
+        _error = tr('Gagal memuat statistik: {e}', {'e': e});
         _loading = false;
       });
     }
   }
 
   void _gantiBulan(int delta) {
-    setState(() => _bulan = DateTime(_bulan.year, _bulan.month + delta));
+    setState(() {
+      _bulan = DateTime(_bulan.year, _bulan.month + delta);
+      _semuaMenu = false;
+    });
     _muat();
   }
 
-  String _rupiah(int n) => n
-      .toString()
-      .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+  String _rupiah(int n) => _rp(n);
 
   int get _uangMasuk => _orders
       .where((o) => o.status != OrderStatus.batal)
@@ -96,25 +152,83 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
   int get _pesananBerdiskon => _orderSah.where((o) => o.diskon > 0).length;
 
+  /// Hitung modal dan laba per menu serta per kategori.
+  ///
+  /// - Modal item = modal yang tersimpan di item pesanan; kalau kosong
+  ///   (pesanan lama), pakai modal menu saat ini; kalau menu sudah
+  ///   dihapus, dianggap 0.
+  /// - Diskon pesanan dibagi ke tiap item sesuai porsi harganya, supaya
+  ///   jumlah laba semua menu tetap sama dengan laba keseluruhan.
+  _HasilLaba _hitungLaba() {
+    final perMenu = <String, _LabaBaris>{};
+    final perKategori = <String, _LabaBaris>{};
+    final tanpaModal = <String>{};
+    var totalModal = 0;
+
+    for (final o in _orderSah) {
+      final totalItem = o.items.fold<int>(0, (s, i) => s + i.subtotal);
+
+      for (final it in o.items) {
+        final menu = _menuById[it.menuItemId];
+        final modalSatuan = it.hargaModal ?? menu?.hargaModal ?? 0;
+        final modal = modalSatuan * it.jumlah;
+        final potongan = (o.diskon > 0 && totalItem > 0)
+            ? o.diskon * it.subtotal / totalItem
+            : 0.0;
+        final bersih = it.subtotal - potongan;
+
+        final nama = menu?.nama ?? it.namaMenu;
+        final kategoriMenu = menu?.kategori ?? '';
+        final kategori = kategoriMenu.isEmpty ? tr('Lainnya') : kategoriMenu;
+
+        if (modalSatuan <= 0) tanpaModal.add(nama);
+        totalModal += modal;
+
+        final baris = [
+          perMenu.putIfAbsent(it.menuItemId, () => _LabaBaris(nama)),
+          perKategori.putIfAbsent(kategori, () => _LabaBaris(kategori)),
+        ];
+        for (final b in baris) {
+          b.terjual += it.jumlah;
+          b.pendapatan += bersih;
+          b.modal += modal;
+        }
+      }
+    }
+
+    int urut(_LabaBaris a, _LabaBaris b) => b.laba.compareTo(a.laba);
+
+    return _HasilLaba(
+      perMenu: perMenu.values.toList()..sort(urut),
+      perKategori: perKategori.values.toList()..sort(urut),
+      totalModal: totalModal,
+      menuTanpaModal: tanpaModal,
+    );
+  }
+
   String _subJudulHari(List<Order> list) {
     final diskon = list
         .where((o) => o.status != OrderStatus.batal)
         .fold(0, (s, o) => s + o.diskon);
     return diskon > 0
-        ? '${list.length} pesanan - diskon Rp${_rupiah(diskon)}'
-        : '${list.length} pesanan';
+        ? tr('{n} pesanan - diskon Rp{d}',
+            {'n': list.length, 'd': _rupiah(diskon)})
+        : tr('{n} pesanan', {'n': list.length});
   }
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild otomatis saat bahasa diganti.
+    context.watch<Bahasa>();
+
     return Scaffold(
       appBar: AppScaffold.isWide(context)
           ? null
           : AppBar(
-              title: const Text('Statistik'),
+              title: Text(tr('Statistik')),
               leading: IconButton(
                 icon: const Icon(Icons.menu),
-                tooltip: 'Buka menu',
+                tooltip: tr('Buka menu'),
                 onPressed: () => AppScaffold.openMenu(context),
               ),
             ),
@@ -128,16 +242,16 @@ class _StatistikScreenState extends State<StatistikScreen> {
               width: double.infinity,
               child: SegmentedButton<int>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: 0,
-                    icon: Icon(Icons.payments_outlined),
-                    label: Text('Ringkasan'),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: Text(tr('Ringkasan')),
                   ),
                   ButtonSegment(
                     value: 1,
-                    icon: Icon(Icons.local_fire_department_outlined),
-                    label: Text('Produksi & Terlaris'),
+                    icon: const Icon(Icons.local_fire_department_outlined),
+                    label: Text(tr('Produksi & Terlaris')),
                   ),
                 ],
                 selected: {_tab},
@@ -176,13 +290,21 @@ class _StatistikScreenState extends State<StatistikScreen> {
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _muat,
-                child: const Text('Coba Lagi'),
+                child: Text(tr('Coba Lagi')),
               ),
             ],
           ),
         ),
       ];
     }
+
+    final laba = _hitungLaba();
+    final pendapatan = _uangMasuk;
+    final labaBersih = pendapatan - laba.totalModal;
+    final persenLaba =
+        pendapatan > 0 ? (labaBersih / pendapatan * 100).toStringAsFixed(0) : '0';
+    final menuTampil =
+        _semuaMenu ? laba.perMenu : laba.perMenu.take(10).toList();
 
     return [
       // ----- Pemilih bulan -----
@@ -194,7 +316,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
             onPressed: () => _gantiBulan(-1),
           ),
           Text(
-            '${_namaBulan[_bulan.month - 1]} ${_bulan.year}',
+            '${tr(_namaBulan[_bulan.month - 1])} ${_bulan.year}',
             style:
                 AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
           ),
@@ -205,24 +327,97 @@ class _StatistikScreenState extends State<StatistikScreen> {
         ],
       ),
       const SizedBox(height: 8),
-      // ----- Pendapatan -----
+      // ----- Pendapatan dan laba -----
       _KartuRekap(
-        label: 'Harga Asli (sebelum diskon)',
+        label: tr('Harga Asli (sebelum diskon)'),
         nilai: _hargaAsli,
         warna: AppColors.statusDiproses,
       ),
       _KartuRekap(
-        label: 'Total Diskon ($_pesananBerdiskon pesanan)',
+        label: tr('Total Diskon ({n} pesanan)', {'n': _pesananBerdiskon}),
         nilai: _totalDiskon,
         warna: AppColors.warning,
       ),
       _KartuRekap(
-        label: 'Pendapatan (setelah diskon)',
-        nilai: _uangMasuk,
+        label: tr('Pendapatan (setelah diskon)'),
+        nilai: pendapatan,
         warna: AppColors.forestGreen,
       ),
+      _KartuRekap(
+        label: tr('Total Modal (HPP)'),
+        nilai: laba.totalModal,
+        warna: AppColors.statusBatal,
+      ),
+      _KartuRekap(
+        label: tr('Laba Bersih ({p}% dari pendapatan)', {'p': persenLaba}),
+        nilai: labaBersih,
+        warna: labaBersih >= 0
+            ? AppColors.forestGreenDark
+            : AppColors.statusBatal,
+      ),
+      if (laba.menuTanpaModal.isNotEmpty)
+        Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.warning.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline,
+                  size: 18, color: AppColors.warning),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tr('{n} menu yang terjual belum diisi modalnya, jadi laba bisa terlihat lebih besar dari sebenarnya. Isi di Kelola Menu.',
+                      {'n': laba.menuTanpaModal.length}),
+                  style: AppTextStyles.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        ),
       const SizedBox(height: 16),
-      const Text('Rincian Pembayaran', style: AppTextStyles.displayMedium),
+
+      // ----- Laba per kategori -----
+      Text(tr('Laba per Kategori'), style: AppTextStyles.displayMedium),
+      const SizedBox(height: 4),
+      if (laba.perKategori.isEmpty)
+        _kosong(tr('Belum ada penjualan bulan ini.'))
+      else
+        for (final b in laba.perKategori) _BarisLaba(baris: b),
+      const SizedBox(height: 16),
+
+      // ----- Laba per menu -----
+      Text(tr('Laba per Menu'), style: AppTextStyles.displayMedium),
+      const SizedBox(height: 4),
+      if (laba.perMenu.isEmpty)
+        _kosong(tr('Belum ada penjualan bulan ini.'))
+      else ...[
+        for (final b in menuTampil) _BarisLaba(baris: b),
+        if (laba.perMenu.length > 10)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => setState(() => _semuaMenu = !_semuaMenu),
+              child: Text(
+                _semuaMenu
+                    ? tr('Tampilkan lebih sedikit')
+                    : tr('Tampilkan semua ({n} menu)',
+                        {'n': laba.perMenu.length}),
+              ),
+            ),
+          ),
+      ],
+      const SizedBox(height: 16),
+
+      // ----- Rincian pembayaran -----
+      Text(tr('Rincian Pembayaran'), style: AppTextStyles.displayMedium),
       const SizedBox(height: 8),
       _BarisMetode(
         icon: Icons.payments_outlined,
@@ -240,11 +435,16 @@ class _StatistikScreenState extends State<StatistikScreen> {
         nilai: _masukPerMetode('transfer'),
       ),
       const SizedBox(height: 16),
-      const Text('Rekap Harian', style: AppTextStyles.displayMedium),
+      Text(tr('Rekap Harian'), style: AppTextStyles.displayMedium),
       const SizedBox(height: 4),
       ..._rekapHarian(),
     ];
   }
+
+  Widget _kosong(String teks) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(teks, style: AppTextStyles.bodyMedium),
+      );
 
   List<Widget> _rekapHarian() {
     final perHari = <DateTime, List<Order>>{};
@@ -256,9 +456,9 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
     if (hariUrut.isEmpty) {
       return [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Text('Belum ada pesanan bulan ini.',
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(tr('Belum ada pesanan bulan ini.'),
               style: AppTextStyles.bodyMedium),
         ),
       ];
@@ -270,7 +470,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
           contentPadding: EdgeInsets.zero,
           dense: true,
           title: Text(
-            '${_hariPendek[hari.weekday - 1]}, ${hari.day} ${_namaBulan[hari.month - 1]}',
+            '${tr(_hariPendek[hari.weekday - 1])}, ${hari.day} ${tr(_namaBulan[hari.month - 1])}',
             style: AppTextStyles.bodyLarge,
           ),
           subtitle: Text(_subJudulHari(perHari[hari]!),
@@ -314,10 +514,47 @@ class _KartuRekap extends StatelessWidget {
           Expanded(child: Text(label, style: AppTextStyles.bodyLarge)),
           const SizedBox(width: 8),
           Text(
-            'Rp${nilai.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}',
+            '${nilai < 0 ? '-' : ''}Rp${_rp(nilai.abs())}',
             style: AppTextStyles.priceLarge.copyWith(color: warna),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Satu baris laba untuk satu menu atau satu kategori.
+class _BarisLaba extends StatelessWidget {
+  final _LabaBaris baris;
+
+  const _BarisLaba({required this.baris});
+
+  @override
+  Widget build(BuildContext context) {
+    final rugi = baris.laba < 0;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        baris.nama,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.bodyLarge,
+      ),
+      subtitle: Text(
+        tr('{n} terjual • Pendapatan Rp{a} • Modal Rp{m}', {
+          'n': baris.terjual,
+          'a': _rp(baris.pendapatanBulat),
+          'm': _rp(baris.modal),
+        }),
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+      ),
+      trailing: Text(
+        '${rugi ? '-' : ''}Rp${_rp(baris.laba.abs())}',
+        style: AppTextStyles.price.copyWith(
+          color: rugi ? AppColors.statusBatal : AppColors.forestGreen,
+        ),
       ),
     );
   }
@@ -342,7 +579,7 @@ class _BarisMetode extends StatelessWidget {
       leading: Icon(icon, color: AppColors.forestGreen),
       title: Text(label, style: AppTextStyles.bodyLarge),
       trailing: Text(
-        'Rp${nilai.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}',
+        'Rp${_rp(nilai)}',
         style: AppTextStyles.price,
       ),
     );

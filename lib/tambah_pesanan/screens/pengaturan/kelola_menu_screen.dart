@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // PENTING: samain 3 import di bawah ini dengan path yang dipake file lain
 // (tinggal copy dari dashboard_screen.dart).
+import '../../../l10n/bahasa.dart';
 import '../../../theme/app_theme.dart' hide AppTextStyles;
 import '../../../theme/app_text_styles.dart';
 import '../../../menu_board/providers/menu_provider.dart';
@@ -45,6 +46,8 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
   String _tipe(Map<String, dynamic> m) => (m['tipe'] ?? '').toString();
   int _harga(Map<String, dynamic> m) =>
       m['harga'] is num ? (m['harga'] as num).toInt() : 0;
+  int _modal(Map<String, dynamic> m) =>
+      m['harga_modal'] is num ? (m['harga_modal'] as num).toInt() : 0;
   bool _tersedia(Map<String, dynamic> m) => m['tersedia'] == true;
   String _rupiah(int n) => 'Rp ${_FormatterRupiah.beriTitik(n.toString())}';
 
@@ -131,7 +134,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       setState(() => m['tersedia'] = !val);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal ubah status: $e'),
+          content: Text(tr('Gagal ubah status: {e}', {'e': e})),
           backgroundColor: AppColors.statusBatal,
           behavior: SnackBarBehavior.floating,
         ),
@@ -145,19 +148,20 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus menu ini?'),
+        title: Text(tr('Hapus menu ini?')),
         content: Text(
-          '"${_nama(m)}" bakal dihapus permanen dari daftar menu. Lanjut?',
+          tr('"{nama}" bakal dihapus permanen dari daftar menu. Lanjut?',
+              {'nama': _nama(m)}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: Text(tr('Batal')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus',
-                style: TextStyle(color: AppColors.statusBatal)),
+            child: Text(tr('Hapus'),
+                style: const TextStyle(color: AppColors.statusBatal)),
           ),
         ],
       ),
@@ -171,7 +175,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Menu "${_nama(m)}" udah dihapus'),
+          content: Text(tr('Menu "{nama}" udah dihapus', {'nama': _nama(m)})),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -181,7 +185,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal hapus: $e'),
+          content: Text(tr('Gagal hapus: {e}', {'e': e})),
           backgroundColor: AppColors.statusBatal,
           behavior: SnackBarBehavior.floating,
         ),
@@ -192,6 +196,9 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
   // ---------- tampilan ----------
   @override
   Widget build(BuildContext context) {
+    // Rebuild otomatis saat bahasa diganti.
+    context.watch<Bahasa>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -202,15 +209,15 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
             ? null
             : IconButton(
                 icon: const Icon(Icons.menu),
-                tooltip: 'Buka menu',
+                tooltip: tr('Buka menu'),
                 onPressed: () => AppScaffold.openMenu(context),
               ),
-        title: const Text('Kelola Menu'),
+        title: Text(tr('Kelola Menu')),
         actions: [
           IconButton(
             onPressed: _muat,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Muat ulang',
+            tooltip: tr('Muat ulang'),
           ),
         ],
       ),
@@ -219,7 +226,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
         backgroundColor: AppColors.forestGreen,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
+        label: Text(tr('Tambah')),
       ),
       body: Column(
         children: [
@@ -232,7 +239,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
                     controller: _cari,
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama menu...',
+                      hintText: tr('Cari nama menu...'),
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
                       fillColor: AppColors.surface,
@@ -256,29 +263,29 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
                 const SizedBox(width: 8),
                 _tombolTampilan(
                   ikon: Icons.view_list_rounded,
-                  tip: 'Tampilan daftar',
+                  tip: tr('Tampilan daftar'),
                   aktif: !_gridView,
                   onTap: () => setState(() => _gridView = false),
                 ),
                 _tombolTampilan(
                   ikon: Icons.grid_view_rounded,
-                  tip: 'Tampilan kartu',
+                  tip: tr('Tampilan kartu'),
                   aktif: _gridView,
                   onTap: () => setState(() => _gridView = true),
                 ),
               ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
             child: Row(
               children: [
-                Icon(Icons.info_outline, size: 13, color: Colors.black38),
-                SizedBox(width: 4),
+                const Icon(Icons.info_outline, size: 13, color: Colors.black38),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Ketuk buat edit • geser switch buat tandai habis • tahan buat hapus',
-                    style: TextStyle(fontSize: 11, color: Colors.black38),
+                    tr('Ketuk buat edit • geser switch buat tandai habis • tahan buat hapus'),
+                    style: const TextStyle(fontSize: 11, color: Colors.black38),
                   ),
                 ),
               ],
@@ -306,8 +313,9 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
               const Icon(Icons.wifi_off,
                   size: 44, color: AppColors.statusBatal),
               const SizedBox(height: 12),
-              const Text('Gagal memuat menu',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(tr('Gagal memuat menu'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 4),
               Text(
                 _error!,
@@ -315,24 +323,24 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
                 style: const TextStyle(fontSize: 12, color: Colors.black45),
               ),
               const SizedBox(height: 12),
-              ElevatedButton(onPressed: _muat, child: const Text('Coba Lagi')),
+              ElevatedButton(onPressed: _muat, child: Text(tr('Coba Lagi'))),
             ],
           ),
         ),
       );
     }
     if (_menu.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.restaurant, size: 56, color: Colors.black26),
-            SizedBox(height: 12),
-            Text('Belum ada menu',
-                style: TextStyle(fontSize: 15, color: Colors.black45)),
-            SizedBox(height: 4),
-            Text('Ketuk tombol Tambah buat bikin menu pertama',
-                style: TextStyle(fontSize: 12, color: Colors.black38)),
+            const Icon(Icons.restaurant, size: 56, color: Colors.black26),
+            const SizedBox(height: 12),
+            Text(tr('Belum ada menu'),
+                style: const TextStyle(fontSize: 15, color: Colors.black45)),
+            const SizedBox(height: 4),
+            Text(tr('Ketuk tombol Tambah buat bikin menu pertama'),
+                style: const TextStyle(fontSize: 12, color: Colors.black38)),
           ],
         ),
       );
@@ -341,7 +349,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
     final daftar = _hasil;
     if (daftar.isEmpty) {
       return Center(
-        child: Text('Ga ada menu yang cocok sama "${_cari.text}"',
+        child: Text(tr('Ga ada menu yang cocok sama "{q}"', {'q': _cari.text}),
             style: const TextStyle(fontSize: 13, color: Colors.black45)),
       );
     }
@@ -364,7 +372,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
 
     for (final m in daftar) {
       final k = _kategori(m);
-      final tampil = k.isEmpty ? 'Lainnya' : k;
+      final tampil = k.isEmpty ? tr('Lainnya') : k;
       if (tampil != kategoriLalu) {
         tutupKelompok();
         kategoriLalu = tampil;
@@ -431,7 +439,7 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
             crossAxisCount: kolom,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            mainAxisExtent: 214,
+            mainAxisExtent: 234,
           ),
           itemBuilder: (context, i) => _kartu(items[i]),
         );
@@ -505,9 +513,9 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
                             color: AppColors.statusBatal,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'Habis',
-                            style: TextStyle(
+                          child: Text(
+                            tr('Habis'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -532,6 +540,8 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 11, color: Colors.black45),
               ),
+              const SizedBox(height: 2),
+              _infoLaba(m, ukuran: 11),
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -593,6 +603,37 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
     );
   }
 
+  /// Baris kecil "Modal Rp 8.000 • Untung Rp 7.000".
+  /// Kalau modal belum diisi, tampil pengingat. Kalau modal > harga jual,
+  /// tampil merah dengan tulisan "Rugi".
+  Widget _infoLaba(Map<String, dynamic> m, {double ukuran = 12}) {
+    final modal = _modal(m);
+    if (modal <= 0) {
+      return Text(
+        tr('Modal belum diisi'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: ukuran, color: Colors.orange.shade800),
+      );
+    }
+    final untung = _harga(m) - modal;
+    final rugi = untung < 0;
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        '${tr('Modal')} ${_rupiah(modal)} • '
+        '${rugi ? tr('Rugi') : tr('Untung')} ${_rupiah(untung.abs())}',
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: ukuran,
+          fontWeight: FontWeight.w600,
+          color: rugi ? AppColors.statusBatal : AppColors.forestGreen,
+        ),
+      ),
+    );
+  }
+
   Widget _tile(Map<String, dynamic> m) {
     final habis = !_tersedia(m);
     return Container(
@@ -613,16 +654,24 @@ class _KelolaMenuScreenState extends State<KelolaMenuScreen> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(
-          habis
-              ? 'Habis — ga ditampilin di kasir'
-              : (_tipe(m).isEmpty ? _kategori(m) : _tipe(m)),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            color: habis ? AppColors.statusBatal : Colors.black45,
-          ),
+        isThreeLine: true,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              habis
+                  ? tr('Habis — ga ditampilin di kasir')
+                  : (_tipe(m).isEmpty ? _kategori(m) : _tipe(m)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: habis ? AppColors.statusBatal : Colors.black45,
+              ),
+            ),
+            const SizedBox(height: 2),
+            _infoLaba(m),
+          ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -662,6 +711,7 @@ class _FormMenuState extends State<_FormMenu> {
 
   late final TextEditingController _nama;
   late final TextEditingController _harga;
+  late final TextEditingController _modal;
   late final TextEditingController _catatan;
   late final TextEditingController _kategoriBaru;
   late final TextEditingController _tipeBaru;
@@ -693,6 +743,14 @@ class _FormMenuState extends State<_FormMenu> {
       text: hargaAwal <= 0
           ? ''
           : _FormatterRupiah.beriTitik(hargaAwal.toString()),
+    );
+    final modalAwal = m == null
+        ? 0
+        : (m['harga_modal'] is num ? (m['harga_modal'] as num).toInt() : 0);
+    _modal = TextEditingController(
+      text: modalAwal <= 0
+          ? ''
+          : _FormatterRupiah.beriTitik(modalAwal.toString()),
     );
     _catatan = TextEditingController(
         text: m == null ? '' : (m['catatan'] ?? '').toString());
@@ -730,6 +788,7 @@ class _FormMenuState extends State<_FormMenu> {
   void dispose() {
     _nama.dispose();
     _harga.dispose();
+    _modal.dispose();
     _catatan.dispose();
     _kategoriBaru.dispose();
     _tipeBaru.dispose();
@@ -769,8 +828,8 @@ class _FormMenuState extends State<_FormMenu> {
 
       if (bytes.length > 3 * 1024 * 1024) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Foto terlalu besar (maksimal 3 MB)'),
+          SnackBar(
+            content: Text(tr('Foto terlalu besar (maksimal 3 MB)')),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -785,7 +844,7 @@ class _FormMenuState extends State<_FormMenu> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal memilih foto: $e'),
+          content: Text(tr('Gagal memilih foto: {e}', {'e': e})),
           backgroundColor: AppColors.statusBatal,
           behavior: SnackBarBehavior.floating,
         ),
@@ -857,14 +916,15 @@ class _FormMenuState extends State<_FormMenu> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Foto menu',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              Text(
+                tr('Foto menu'),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Opsional. Foto dikecilkan otomatis.',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
+              Text(
+                tr('Opsional. Foto dikecilkan otomatis.'),
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -876,7 +936,7 @@ class _FormMenuState extends State<_FormMenu> {
                         ? null
                         : () => _pilihFoto(ImageSource.gallery),
                     icon: const Icon(Icons.photo_library_outlined, size: 18),
-                    label: const Text('Galeri'),
+                    label: Text(tr('Galeri')),
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                     ),
@@ -887,7 +947,7 @@ class _FormMenuState extends State<_FormMenu> {
                           ? null
                           : () => _pilihFoto(ImageSource.camera),
                       icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                      label: const Text('Kamera'),
+                      label: Text(tr('Kamera')),
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
@@ -901,7 +961,7 @@ class _FormMenuState extends State<_FormMenu> {
                                 _hapusFoto = true;
                               }),
                       icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Hapus'),
+                      label: Text(tr('Hapus')),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.statusBatal,
                         visualDensity: VisualDensity.compact,
@@ -922,8 +982,8 @@ class _FormMenuState extends State<_FormMenu> {
         _kategoriModeBaru ? _kategoriBaru.text.trim() : (_kategori ?? '');
     if (kategori.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kategori belum dipilih'),
+        SnackBar(
+          content: Text(tr('Kategori belum dipilih')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -931,6 +991,7 @@ class _FormMenuState extends State<_FormMenu> {
     }
     final tipe = _tipeModeBaru ? _tipeBaru.text.trim() : (_tipe ?? '');
     final harga = int.parse(_harga.text.replaceAll('.', ''));
+    final modal = _angka(_modal); // kosong = 0 (belum diisi)
 
     setState(() => _menyimpan = true);
     try {
@@ -938,7 +999,8 @@ class _FormMenuState extends State<_FormMenu> {
       final payload = <String, dynamic>{
         'nama': _nama.text.trim(),
         'kategori': kategori,
-        'harga': harga,
+        'harga': harga, // harga jual
+        'harga_modal': modal, // harga modal (HPP) per porsi
         'tersedia': _tersedia,
         'catatan': _catatan.text.trim().isEmpty ? null : _catatan.text.trim(),
       };
@@ -966,7 +1028,7 @@ class _FormMenuState extends State<_FormMenu> {
       setState(() => _menyimpan = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal nyimpen menu: $e'),
+          content: Text(tr('Gagal nyimpen menu: {e}', {'e': e})),
           backgroundColor: AppColors.statusBatal,
           behavior: SnackBarBehavior.floating,
         ),
@@ -980,19 +1042,20 @@ class _FormMenuState extends State<_FormMenu> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus menu ini?'),
+        title: Text(tr('Hapus menu ini?')),
         content: Text(
-          '"${_nama.text.trim()}" bakal dihapus permanen dari daftar menu. Lanjut?',
+          tr('"{nama}" bakal dihapus permanen dari daftar menu. Lanjut?',
+              {'nama': _nama.text.trim()}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: Text(tr('Batal')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus',
-                style: TextStyle(color: AppColors.statusBatal)),
+            child: Text(tr('Hapus'),
+                style: const TextStyle(color: AppColors.statusBatal)),
           ),
         ],
       ),
@@ -1011,12 +1074,50 @@ class _FormMenuState extends State<_FormMenu> {
       setState(() => _menyimpan = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal hapus: $e'),
+          content: Text(tr('Gagal hapus: {e}', {'e': e})),
           backgroundColor: AppColors.statusBatal,
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
+  }
+
+  /// Isi kolom rupiah jadi angka (kosong = 0).
+  int _angka(TextEditingController c) =>
+      int.tryParse(c.text.replaceAll('.', '')) ?? 0;
+
+  /// Pratinjau langsung: untung (atau rugi) per porsi dan persentasenya.
+  Widget _pratinjauLaba() {
+    final jual = _angka(_harga);
+    final modal = _angka(_modal);
+    if (jual <= 0 || modal <= 0) return const SizedBox.shrink();
+
+    final untung = jual - modal;
+    final rugi = untung < 0;
+    final warna = rugi ? AppColors.statusBatal : AppColors.forestGreen;
+    final nominal = _FormatterRupiah.beriTitik(untung.abs().toString());
+    final persen = (untung / jual * 100).toStringAsFixed(0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: warna.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        rugi
+            ? tr('Rugi Rp {n} per porsi (modal lebih besar dari harga jual)',
+                {'n': nominal})
+            : tr('Untung Rp {n} per porsi ({p}% dari harga jual)',
+                {'n': nominal, 'p': persen}),
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: warna,
+        ),
+      ),
+    );
   }
 
   @override
@@ -1049,7 +1150,7 @@ class _FormMenuState extends State<_FormMenu> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  _edit ? 'Edit Menu' : 'Tambah Menu Baru',
+                  _edit ? tr('Edit Menu') : tr('Tambah Menu Baru'),
                   style: AppTextStyles.displayMedium,
                 ),
                 const SizedBox(height: 16),
@@ -1058,10 +1159,10 @@ class _FormMenuState extends State<_FormMenu> {
                 TextFormField(
                   controller: _nama,
                   textCapitalization: TextCapitalization.words,
-                  decoration:
-                      _dekor('Nama menu', hint: 'contoh: Kopi Susu Sapuangin'),
+                  decoration: _dekor(tr('Nama menu'),
+                      hint: tr('contoh: Kopi Susu Sapuangin')),
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Nama menu belum diisi'
+                      ? tr('Nama menu belum diisi')
                       : null,
                 ),
                 const SizedBox(height: 12),
@@ -1070,31 +1171,47 @@ class _FormMenuState extends State<_FormMenu> {
                 _fieldTipe(),
                 const SizedBox(height: 12),
                 TextFormField(
+                  controller: _modal,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_FormatterRupiah()],
+                  onChanged: (_) => setState(() {}),
+                  decoration: _dekor(tr('Harga modal (HPP)'), hint: '8000')
+                      .copyWith(
+                    prefixText: 'Rp ',
+                    helperText:
+                        tr('Biaya bahan per porsi. Boleh dikosongkan dulu.'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
                   controller: _harga,
                   keyboardType: TextInputType.number,
                   inputFormatters: [_FormatterRupiah()],
-                  decoration: _dekor('Harga', hint: '25000')
+                  onChanged: (_) => setState(() {}),
+                  decoration: _dekor(tr('Harga jual'), hint: '25000')
                       .copyWith(prefixText: 'Rp '),
                   validator: (v) {
                     final digit = (v ?? '').replaceAll('.', '');
-                    if (digit.isEmpty) return 'Harga belum diisi';
+                    if (digit.isEmpty) return tr('Harga belum diisi');
                     if (int.parse(digit) <= 0) {
-                      return 'Harga harus lebih dari 0';
+                      return tr('Harga harus lebih dari 0');
                     }
                     return null;
                   },
                 ),
+                const SizedBox(height: 8),
+                _pratinjauLaba(),
                 const SizedBox(height: 4),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _tersedia,
                   onChanged: (v) => setState(() => _tersedia = v),
-                  title: const Text('Tersedia',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text(
-                    'Matikan kalau menu ini lagi habis',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  title: Text(tr('Tersedia'),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    tr('Matikan kalau menu ini lagi habis'),
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1102,8 +1219,8 @@ class _FormMenuState extends State<_FormMenu> {
                   controller: _catatan,
                   maxLines: 2,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: _dekor('Catatan (opsional)',
-                      hint: 'contoh: bisa less sugar, extra shot'),
+                  decoration: _dekor(tr('Catatan (opsional)'),
+                      hint: tr('contoh: bisa less sugar, extra shot')),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -1124,7 +1241,7 @@ class _FormMenuState extends State<_FormMenu> {
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2),
                           )
-                        : Text(_edit ? 'Simpan Perubahan' : 'Tambah Menu',
+                        : Text(_edit ? tr('Simpan Perubahan') : tr('Tambah Menu'),
                             style: AppTextStyles.button),
                   ),
                 ),
@@ -1135,7 +1252,7 @@ class _FormMenuState extends State<_FormMenu> {
                     child: TextButton.icon(
                       onPressed: _menyimpan ? null : _hapusDariForm,
                       icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Hapus Menu Ini'),
+                      label: Text(tr('Hapus Menu Ini')),
                       style: TextButton.styleFrom(
                           foregroundColor: AppColors.statusBatal),
                     ),
@@ -1155,29 +1272,29 @@ class _FormMenuState extends State<_FormMenu> {
         controller: _kategoriBaru,
         textCapitalization: TextCapitalization.words,
         decoration: _dekor(
-          'Kategori baru',
-          hint: 'contoh: Kopi, Non-Kopi, Snack',
+          tr('Kategori baru'),
+          hint: tr('contoh: Kopi, Non-Kopi, Snack'),
           suffix: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () => setState(() => _kategoriModeBaru = false),
           ),
         ),
         validator: (v) =>
-            (v == null || v.trim().isEmpty) ? 'Kategori belum diisi' : null,
+            (v == null || v.trim().isEmpty) ? tr('Kategori belum diisi') : null,
       );
     }
     return DropdownButtonFormField<String>(
       initialValue: _kategori,
       isExpanded: true,
-      decoration: _dekor('Kategori', hint: 'pilih atau bikin baru'),
+      decoration: _dekor(tr('Kategori'), hint: tr('pilih atau bikin baru')),
       items: [
         for (final k in widget.kategoriList)
           DropdownMenuItem(
               value: k, child: Text(k, overflow: TextOverflow.ellipsis)),
-        const DropdownMenuItem(
+        DropdownMenuItem(
           value: '__baru__',
-          child: Text('+ Bikin kategori baru...',
-              style: TextStyle(fontStyle: FontStyle.italic)),
+          child: Text(tr('+ Bikin kategori baru...'),
+              style: const TextStyle(fontStyle: FontStyle.italic)),
         ),
       ],
       onChanged: (v) {
@@ -1187,7 +1304,7 @@ class _FormMenuState extends State<_FormMenu> {
           setState(() => _kategori = v);
         }
       },
-      validator: (v) => v == null ? 'Kategori belum dipilih' : null,
+      validator: (v) => v == null ? tr('Kategori belum dipilih') : null,
     );
   }
 
@@ -1197,8 +1314,8 @@ class _FormMenuState extends State<_FormMenu> {
         controller: _tipeBaru,
         textCapitalization: TextCapitalization.words,
         decoration: _dekor(
-          'Tipe menu',
-          hint: 'contoh: minuman, makanan',
+          tr('Tipe menu'),
+          hint: tr('contoh: minuman, makanan'),
           suffix: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () => setState(() => _tipeModeBaru = false),
@@ -1209,15 +1326,15 @@ class _FormMenuState extends State<_FormMenu> {
     return DropdownButtonFormField<String>(
       initialValue: _tipe,
       isExpanded: true,
-      decoration: _dekor('Tipe menu', hint: 'contoh: minuman, makanan'),
+      decoration: _dekor(tr('Tipe menu'), hint: tr('contoh: minuman, makanan')),
       items: [
         for (final t in widget.tipeList)
           DropdownMenuItem(
               value: t, child: Text(t, overflow: TextOverflow.ellipsis)),
-        const DropdownMenuItem(
+        DropdownMenuItem(
           value: '__baru__',
-          child: Text('+ Tulis tipe sendiri...',
-              style: TextStyle(fontStyle: FontStyle.italic)),
+          child: Text(tr('+ Tulis tipe sendiri...'),
+              style: const TextStyle(fontStyle: FontStyle.italic)),
         ),
       ],
       onChanged: (v) {
@@ -1253,4 +1370,4 @@ class _FormatterRupiah extends TextInputFormatter {
       selection: TextSelection.collapsed(offset: hasil.length),
     );
   }
-}
+} 

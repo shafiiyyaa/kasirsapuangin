@@ -17,6 +17,9 @@ dependencies:
   # State management
   provider: ^6.1.2
 
+  # Suara notifikasi pesanan masuk
+  audioplayers: ^6.1.0
+
   # Navigasi antar halaman
   go_router: ^14.6.1
 
@@ -41,3 +44,4 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/sounds/

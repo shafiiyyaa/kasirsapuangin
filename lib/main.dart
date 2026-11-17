@@ -8,6 +8,7 @@ import 'menu_board/providers/auth_provider.dart';
 import 'menu_board/providers/menu_provider.dart';
 import 'menu_board/providers/order_provider.dart';
 import 'menu_board/providers/theme_provider.dart';
+import 'menu_board/services/notifikasi_pesanan.dart';
 
 import 'theme/app_theme.dart';
 
@@ -75,6 +76,7 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
   @override
   void dispose() {
     authProvider.removeListener(_onAuthBerubah);
+    NotifikasiPesanan.instance.berhenti();
     super.dispose();
   }
 
@@ -91,12 +93,26 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
       // Logout: bersihkan sisa data akun sebelumnya.
       order.kosongkanKeranjang();
       order.setKasir('');
+      NotifikasiPesanan.instance.berhenti();
       return;
     }
 
     // Login: nama kasir otomatis dari akun, lalu muat data.
     order.setKasir(profil.nama);
     _muatData();
+    _mulaiNotifikasi();
+  }
+
+  /// Dengarkan pesanan masuk (mis. dari QR per meja): bunyi + banner.
+  void _mulaiNotifikasi() {
+    NotifikasiPesanan.instance.mulai(
+      onPesananMasuk: () {
+        if (!mounted) return;
+        context.read<OrderProvider>().loadOrders();
+        context.read<OrderProvider>().loadRingkasanHariIni();
+      },
+      onLihat: () => _router.go('/riwayat'),
+    );
   }
 
   void _muatData() {
@@ -116,6 +132,7 @@ class _KasirSapuanginAppState extends State<KasirSapuanginApp> {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
+          scaffoldMessengerKey: NotifikasiPesanan.instance.messengerKey,
           routerConfig: _router,
         );
       },
